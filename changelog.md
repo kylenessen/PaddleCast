@@ -4,13 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
-- _[New features or functionality go here]_
+- Initial project structure and scaffolding
+- Core configuration files:
+  - `config.yaml` for service configuration
+  - `requirements.txt` for Python dependencies
+  - `.env.example` for environment variables template
+  - `rubric.md` for LLM assessment criteria
+- Basic Python module structure:
+  - Main script (`main.py`)
+  - Weather service module (`src/weather.py`)
+  - Tides service module (`src/tides.py`)
+  - Notifications module (`src/notifications.py`)
+  - Configuration module (`src/config.py`)
+- Docker configuration (`Dockerfile`) for containerization
+
 ### Changed
-- _[Changes in existing functionality or design go here]_
+- _No changes to existing functionality_
+
 ### Fixed
-- _[Bug fixes or corrections go here]_
+- _No fixes yet_
+
 ### Removed
-- _[Deprecated or removed features go here]_
+- _Nothing removed_
 
 ---
 
@@ -29,4 +44,3 @@ All notable changes to this project will be documented in this file.
   create a new section above the previous versions. 
   You can reference the commit or pull request if applicable.
 -->
-
