@@ -19,7 +19,13 @@ All notable changes to this project will be documented in this file.
 - Docker configuration (`Dockerfile`) for containerization
 
 ### Changed
-- _No changes to existing functionality_
+- Added version control configuration:
+  - `.gitignore` for excluding sensitive and generated files
+  - `.dockerignore` for optimizing Docker builds
+- Set up environment variables in `.env` with Pushover credentials
+- Configured location parameters:
+  - Updated latitude/longitude coordinates for kayak launch site
+  - Confirmed NOAA tide station ID
 
 ### Fixed
 - _No fixes yet_
