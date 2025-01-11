@@ -1,7 +1,7 @@
 location:
-  tide_station_id: "9412110"  # NOAA station ID for Morro Bay
-  lat: 35.365
-  lon: -120.851
+  tide_station_id: "9412110"  # NOAA station ID for Port San Luis
+  lat: 35.32743152867097
+  lon: -120.84221781139401
 
 thresholds:
   min_tide_ft: 3.0
