@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
   - Tides service module (`src/tides.py`)
   - Notifications module (`src/notifications.py`)
   - Configuration module (`src/config.py`)
+  - Sunrise-sunset module (`src/sunrise_sunset.py`) for daylight timing data
 - Docker configuration (`Dockerfile`) for containerization
 
 ### Changed
