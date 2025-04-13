@@ -1,0 +1,9 @@
+requests
+pyyaml
+pytz
+python-dateutil
+pandas
+
+# Development/Testing Dependencies
+pytest
+requests-mock
