@@ -8,9 +8,7 @@ from datetime import datetime, date
 from typing import Dict, Any, Optional
 
 
-# Configure logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging configuration should be done in the main application or test setup.
 
 
 def get_hourly_forecast() -> Optional[pd.DataFrame]:
