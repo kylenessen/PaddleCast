@@ -1,6 +1,7 @@
 """
 Module for fetching and analyzing tide data from NOAA CO-OPS API.
 """
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Optional, Union
 import requests
@@ -50,10 +51,21 @@ class TidesService:
         Initialize the TidesService.
 
         Args:
-            config_path: Path to configuration file
+            config_path: Relative path to configuration file from this script's directory
         """
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
+        # Construct the absolute path to the config file
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path_abs = os.path.join(script_dir, config_path)
+
+        try:
+            with open(config_path_abs, 'r') as f:
+                config = yaml.safe_load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Configuration file not found at {config_path_abs}")
+        except yaml.YAMLError as e:
+            raise ValueError(
+                f"Error parsing configuration file {config_path_abs}: {e}")
 
         self.station_id = config['location']['tide_station_id']
         self.lat = config['location']['lat']
