@@ -5,17 +5,22 @@ from zoneinfo import ZoneInfo
 from unittest.mock import patch, Mock
 from src.tides import TidesService, TideWindow
 
+
 @pytest.fixture
 def tide_service():
     """Create a TidesService instance for testing."""
-    return TidesService()  
+    # Point to the correct config relative to the test file if needed,
+    # or mock config loading if TidesService init depends on it heavily.
+    # For now, assuming default config path works or isn't critical for these tests.
+    return TidesService()
+
 
 @pytest.fixture
 def sample_predictions():
     """Sample tide prediction data for testing."""
     tz = ZoneInfo("America/Los_Angeles")
     base_time = datetime(2025, 1, 1, 0, 0, tzinfo=tz)  # Start at midnight
-    
+
     # Generate 24 hours of data with 30-minute intervals
     data = []
     current_time = base_time
@@ -35,7 +40,7 @@ def sample_predictions():
         # Evening (6 PM to midnight) - below threshold
         else:
             height = 2.5
-            
+
         # Add two data points per hour (30-minute intervals)
         data.append({
             "t": current_time.strftime("%Y-%m-%d %H:%M"),
@@ -47,8 +52,9 @@ def sample_predictions():
             "v": height
         })
         current_time += timedelta(minutes=30)
-    
+
     return data
+
 
 def test_tide_window_duration():
     """Test TideWindow duration calculation."""
@@ -58,6 +64,7 @@ def test_tide_window_duration():
     window = TideWindow(start, end)
     assert window.duration_minutes == 90
 
+
 def test_tide_window_str():
     """Test TideWindow string representation."""
     tz = ZoneInfo("America/Los_Angeles")
@@ -66,6 +73,7 @@ def test_tide_window_str():
     window = TideWindow(start, end)
     expected = "10:00 AM to 11:30 AM (duration: 90 minutes)"
     assert str(window) == expected
+
 
 @patch('requests.get')
 def test_get_predictions(mock_get, tide_service):
@@ -90,8 +98,11 @@ def test_get_predictions(mock_get, tide_service):
     args = mock_get.call_args
     assert args[1]["params"]["product"] == "predictions"
 
+
 @patch('requests.get')
-def test_find_tide_windows(mock_get, tide_service, sample_predictions):
+@patch('src.tides.TidesService.get_sun_times')  # Add patch for get_sun_times
+# Add mock to signature
+def test_find_tide_windows(mock_get_sun_times, mock_get, tide_service, sample_predictions):
     """Test finding tide windows."""
     mock_response = Mock()
     mock_response.json.return_value = {"predictions": sample_predictions}
@@ -99,31 +110,56 @@ def test_find_tide_windows(mock_get, tide_service, sample_predictions):
 
     tz = ZoneInfo("America/Los_Angeles")
     target_date = datetime(2025, 1, 1, tzinfo=tz)
-    
-    # Test without daylight restrictions
-    windows = tide_service.find_tide_windows(
+
+    # Test without daylight restrictions - EXPLICITLY SET daylight_only=False
+    windows_all_day = tide_service.find_tide_windows(
         target_date,
         min_height=3.0,
-        min_duration=90
+        min_duration=90,
+        daylight_only=False  # Explicitly set to False
     )
-    
-    assert len(windows) == 2
-    assert all(isinstance(w, TideWindow) for w in windows)
-    assert all(w.duration_minutes >= 90 for w in windows)
+
+    assert len(windows_all_day) == 2
+    assert all(isinstance(w, TideWindow) for w in windows_all_day)
+    # Check original durations before clipping
+    assert windows_all_day[0].duration_minutes == 210  # 6:00 to 9:30
+    assert windows_all_day[1].duration_minutes == 210  # 14:00 to 17:30
 
     # Test with daylight restrictions
     sunrise = datetime(2025, 1, 1, 7, 0, tzinfo=tz)
     sunset = datetime(2025, 1, 1, 17, 0, tzinfo=tz)
-    windows = tide_service.find_tide_windows(
+
+    # Configure the mock to return the test's hardcoded sunrise/sunset
+    mock_get_sun_times.return_value = (sunrise, sunset)
+
+    windows_daylight = tide_service.find_tide_windows(
         target_date,
         min_height=3.0,
         min_duration=90,
-        daylight_only=True
+        daylight_only=True  # This call uses the configured mock
     )
-    
-    assert len(windows) == 2
-    assert all(sunrise <= w.start <= sunset for w in windows)
-    assert all(sunrise <= w.end <= sunset for w in windows)
+
+    # Assertions based on the sample data and the mocked 7am-5pm window:
+    # Original windows: 6am-9:30am, 2pm-5:30pm
+    # Clipped windows: 7am-9:30am, 2pm-5pm
+    assert len(windows_daylight) == 2
+    assert all(isinstance(w, TideWindow) for w in windows_daylight)
+    # Check durations after clipping
+    # Corrected: 7:00 to 9:30
+    assert windows_daylight[0].duration_minutes == 150
+    # Correct: 14:00 to 17:00
+    assert windows_daylight[1].duration_minutes == 180
+    # Check boundaries against the mocked sunrise/sunset
+    assert all(sunrise <= w.start <= sunset for w in windows_daylight)
+    assert all(sunrise <= w.end <= sunset for w in windows_daylight)
+    # Check specific start/end times after clipping
+    assert windows_daylight[0].start == sunrise  # 7:00 AM
+    assert windows_daylight[0].end == datetime(
+        2025, 1, 1, 9, 30, tzinfo=tz)  # Corrected: 9:30 AM
+    assert windows_daylight[1].start == datetime(
+        2025, 1, 1, 14, 0, tzinfo=tz)  # 2:00 PM
+    assert windows_daylight[1].end == sunset  # 5:00 PM
+
 
 @patch('requests.get')
 def test_api_error_handling(mock_get, tide_service):
@@ -140,6 +176,8 @@ def test_api_error_handling(mock_get, tide_service):
             datetime(2025, 1, 2)
         )
 
+
+# Keep the __main__ block if it's useful for manual testing/debugging
 if __name__ == "__main__":
     """
     Simple script to check tide windows for a specific date.
@@ -150,18 +188,18 @@ if __name__ == "__main__":
 
     # Initialize service with config
     tides = TidesService()
-    
+
     # Set up target date
     tz = ZoneInfo("America/Los_Angeles")
     target_date = datetime(2025, 1, 11, tzinfo=tz)
-    
+
     # Get sun times for information
     sunrise, sunset = tides.get_sun_times(target_date)
     print(f"\nChecking tide windows for {target_date.date()}")
     print(f"Daylight hours (including buffers):")
     print(f"  Sunrise: {sunrise.strftime('%I:%M %p')} ({sunrise})")
     print(f"  Sunset:  {sunset.strftime('%I:%M %p')} ({sunset})")
-    
+
     # First get all windows
     all_windows = tides.find_tide_windows(
         target_date,
@@ -169,13 +207,13 @@ if __name__ == "__main__":
         min_duration=90,
         daylight_only=False
     )
-    
+
     print("\nAll tide windows:")
     for window in all_windows:
         print(f"- {window}")
         print(f"  start: {window.start}")
         print(f"  end: {window.end}")
-    
+
     # Then get daylight windows
     windows = tides.find_tide_windows(
         target_date,
@@ -183,16 +221,17 @@ if __name__ == "__main__":
         min_duration=90,
         daylight_only=True
     )
-    
+
     if not windows:
         print("\nNo suitable windows found during daylight hours")
     else:
-        print(f"\nFound {len(windows)} suitable windows during daylight hours:")
+        print(
+            f"\nFound {len(windows)} suitable windows during daylight hours:")
         for window in windows:
             print(f"- {window}")
             print(f"  start: {window.start}")
             print(f"  end: {window.end}")
-            
+
     # Show additional windows
     if len(all_windows) > len(windows):
         print(f"\nAdditional windows outside daylight hours:")
