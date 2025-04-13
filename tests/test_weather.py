@@ -17,7 +17,7 @@ SAMPLE_VALID_RESPONSE = {
                 "isDaytime": False,
                 "temperature": 48,
                 "temperatureUnit": "F",
-                "temperatureTrend": None, # Use None for null JSON values
+                "temperatureTrend": None,  # Use None for null JSON values
                 "probabilityOfPrecipitation": {"unitCode": "wmoUnit:percent", "value": 1},
                 "dewpoint": {"unitCode": "wmoUnit:degC", "value": 8.88888888888889},
                 "relativeHumidity": {"unitCode": "wmoUnit:percent", "value": 100},
@@ -52,9 +52,11 @@ SAMPLE_VALID_RESPONSE = {
 # The URL used in the function
 FORECAST_URL = "https://api.weather.gov/gridpoints/LOX/72,118/forecast/hourly"
 
+
 def test_get_hourly_forecast_success(requests_mock):
     """Test successful API call and DataFrame creation."""
-    requests_mock.get(FORECAST_URL, json=SAMPLE_VALID_RESPONSE, status_code=200)
+    requests_mock.get(
+        FORECAST_URL, json=SAMPLE_VALID_RESPONSE, status_code=200)
     df = get_hourly_forecast()
 
     assert isinstance(df, pd.DataFrame)
@@ -66,14 +68,17 @@ def test_get_hourly_forecast_success(requests_mock):
     assert pd.api.types.is_datetime64_any_dtype(df['endTime'])
     assert df.iloc[0]['temperature'] == 48
 
+
 def test_get_hourly_forecast_network_error(requests_mock, caplog):
     """Test handling of network errors."""
-    requests_mock.get(FORECAST_URL, exc=requests.exceptions.ConnectionError("Network error"))
+    requests_mock.get(
+        FORECAST_URL, exc=requests.exceptions.ConnectionError("Network error"))
     df = get_hourly_forecast()
 
     assert df is None
     assert "Error fetching weather data" in caplog.text
     assert "Network error" in caplog.text
+
 
 def test_get_hourly_forecast_http_error(requests_mock, caplog):
     """Test handling of HTTP errors (e.g., 404 Not Found)."""
@@ -82,7 +87,9 @@ def test_get_hourly_forecast_http_error(requests_mock, caplog):
 
     assert df is None
     assert "Error fetching weather data" in caplog.text
-    assert "404 Client Error: Not Found" in caplog.text # requests raises this specific message
+    # requests raises this specific message
+    assert "404 Client Error: Not Found" in caplog.text
+
 
 def test_get_hourly_forecast_missing_properties_key(requests_mock, caplog):
     """Test handling of response missing the 'properties' key."""
@@ -93,6 +100,7 @@ def test_get_hourly_forecast_missing_properties_key(requests_mock, caplog):
     assert df is None
     assert "Could not find 'properties.periods'" in caplog.text
 
+
 def test_get_hourly_forecast_missing_periods_key(requests_mock, caplog):
     """Test handling of response missing the 'periods' key within 'properties'."""
     malformed_response = {"properties": {"some_other_key": "value"}}
@@ -101,6 +109,7 @@ def test_get_hourly_forecast_missing_periods_key(requests_mock, caplog):
 
     assert df is None
     assert "Could not find 'properties.periods'" in caplog.text
+
 
 def test_get_hourly_forecast_periods_not_a_list(requests_mock, caplog):
     """Test handling of response where 'periods' is not a list."""
@@ -111,15 +120,18 @@ def test_get_hourly_forecast_periods_not_a_list(requests_mock, caplog):
     assert df is None
     assert "'properties.periods' is not a list" in caplog.text
 
+
 def test_get_hourly_forecast_empty_periods_list(requests_mock, caplog):
     """Test handling of response with an empty 'periods' list."""
     empty_periods_response = {"properties": {"periods": []}}
-    requests_mock.get(FORECAST_URL, json=empty_periods_response, status_code=200)
+    requests_mock.get(
+        FORECAST_URL, json=empty_periods_response, status_code=200)
     df = get_hourly_forecast()
 
     assert isinstance(df, pd.DataFrame)
     assert df.empty
     assert "API response contained an empty 'periods' list" in caplog.text
+
 
 def test_get_hourly_forecast_invalid_datetime_format(requests_mock, caplog):
     """Test handling when datetime conversion fails for startTime/endTime."""
@@ -134,7 +146,8 @@ def test_get_hourly_forecast_invalid_datetime_format(requests_mock, caplog):
             ]
         }
     }
-    requests_mock.get(FORECAST_URL, json=response_with_bad_date, status_code=200)
+    requests_mock.get(
+        FORECAST_URL, json=response_with_bad_date, status_code=200)
     df = get_hourly_forecast()
 
     assert isinstance(df, pd.DataFrame)
@@ -144,4 +157,5 @@ def test_get_hourly_forecast_invalid_datetime_format(requests_mock, caplog):
     assert df.iloc[0]['startTime'] == "invalid-date-format"
     # Check that the other column *was* converted
     assert pd.api.types.is_datetime64_any_dtype(df['endTime'])
-    assert "Could not convert time columns to datetime" in caplog.text
+    # Check that the specific warning for startTime was logged
+    assert "Could not convert 'startTime' column to datetime" in caplog.text
