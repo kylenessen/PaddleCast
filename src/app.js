@@ -40,7 +40,17 @@ function windowBadge(score) {
   return 'badge bad';
 }
 
-function renderDay(day) {
+function shouldIncludeWindow(dayDate, windowStartIso, windowEndIso, daylightStartM, daylightEndM, allowEvening) {
+  // Convert to minutes since midnight for quick overlap checks
+  const startM = minutesSinceMidnight(dayDate, windowStartIso);
+  const endM = minutesSinceMidnight(dayDate, windowEndIso);
+  if (allowEvening) return true;
+  // Overlap with daylight range
+  return Math.max(startM, daylightStartM) < Math.min(endM, daylightEndM);
+}
+
+function renderDay(day, opts) {
+  const { allowEvening } = opts || { allowEvening: false };
   const daysEl = document.getElementById('days');
   const card = document.createElement('section');
   card.className = 'day-card';
@@ -71,8 +81,26 @@ function renderDay(day) {
 
   const windowsWrap = document.createElement('div');
   windowsWrap.className = 'windows';
-  if (day.windows && day.windows.length) {
-    day.windows.forEach(w => {
+  let daylightMin = 0;
+  let daylightMax = 1440;
+  if (day.sunrise && day.sunset) {
+    const srM = minutesSinceMidnight(day.date, day.sunrise) - 30;
+    const ssM = minutesSinceMidnight(day.date, day.sunset) + 30;
+    daylightMin = Math.max(0, srM);
+    daylightMax = Math.min(1440, ssM);
+  }
+
+  const filteredWindows = (day.windows || []).filter(w => shouldIncludeWindow(
+    day.date,
+    w.start,
+    w.end,
+    daylightMin,
+    daylightMax,
+    allowEvening
+  ));
+
+  if (filteredWindows && filteredWindows.length) {
+    filteredWindows.forEach(w => {
       const el = document.createElement('div');
       el.className = 'window';
       const startM = minutesSinceMidnight(day.date, w.start);
@@ -99,12 +127,20 @@ function renderDay(day) {
 
   // Prepare chart data: X as minutes since midnight
   const points = (day.tide_points || []).map(p => ({ x: minutesSinceMidnight(day.date, p.time), y: p.height_ft }));
-  const windows = (day.windows || []).map(w => ({
+  const windows = (filteredWindows || []).map(w => ({
     start: minutesSinceMidnight(day.date, w.start),
     end: minutesSinceMidnight(day.date, w.end),
     score: w.score
   }));
-  window.renderDayChart(canvas, points, windows);
+  const range = allowEvening
+    ? { min: 0, max: 1440 }
+    : { min: daylightMin, max: daylightMax };
+  window.renderDayChart(canvas, points, windows, range);
+}
+
+function clearDays() {
+  const daysEl = document.getElementById('days');
+  daysEl.innerHTML = '';
 }
 
 async function init() {
@@ -114,7 +150,22 @@ async function init() {
   const gen = new Date(data.generated_at);
   metaEl.textContent = `${data.location} · Generated ${gen.toLocaleString()}`;
 
-  (data.days || []).forEach(renderDay);
+  const toggle = document.getElementById('evening-toggle');
+  const toggleLabel = document.getElementById('evening-toggle-label');
+
+  function renderAll() {
+    clearDays();
+    (data.days || []).forEach(day => renderDay(day, { allowEvening: toggle.checked }));
+  }
+
+  if (toggle) {
+    toggle.addEventListener('change', () => {
+      toggleLabel.textContent = toggle.checked ? 'Include evening sessions' : 'Daylight sessions only';
+      renderAll();
+    });
+  }
+
+  renderAll();
 }
 
 init();

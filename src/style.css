@@ -15,6 +15,9 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); f
 .site-header { padding: 24px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .site-header h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; }
 .subtitle { margin: 4px 0 0; color: #b9c4d0; font-size: 14px; }
+.controls { margin-top: 10px; }
+.toggle { color: #cdd6df; font-size: 13px; }
+.toggle input { margin-right: 8px; }
 
 .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
 

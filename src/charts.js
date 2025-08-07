@@ -7,11 +7,14 @@ function formatTick(mins) {
   return `${h.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
 }
 
-window.renderDayChart = function renderDayChart(canvas, points, windows) {
+window.renderDayChart = function renderDayChart(canvas, points, windows, range) {
   const ctx = canvas.getContext('2d');
   const data = points.sort((a, b) => a.x - b.x);
 
   const regions = (windows || []).map(w => ({ start: w.start, end: w.end, score: w.score }));
+
+  const xmin = (range && Number.isFinite(range.min)) ? range.min : 0;
+  const xmax = (range && Number.isFinite(range.max)) ? range.max : 1440;
 
   const windowPlugin = {
     id: 'windowShading',
@@ -62,6 +65,8 @@ window.renderDayChart = function renderDayChart(canvas, points, windows) {
         x: {
           type: 'linear',
           title: { display: true, text: 'Local Time' },
+          min: xmin,
+          max: xmax,
           ticks: {
             callback: (v) => formatTick(v),
             maxTicksLimit: 12
