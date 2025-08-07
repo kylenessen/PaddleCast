@@ -18,6 +18,9 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); f
 .site-header { padding: 28px; text-align: center; border-bottom: 1px solid rgba(15,42,63,0.06); background: #f7fbff; }
 .site-header h1 { margin: 0; font-size: 34px; letter-spacing: 0.5px; font-weight: 800; color: var(--text); }
 .subtitle { margin: 6px 0 0; color: var(--text-muted); font-size: 15px; }
+.gh-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--text-muted); text-decoration: none; font-size: 13px; }
+.gh-link:hover { color: var(--accent); }
+.gh-icon { vertical-align: middle; }
 .controls { margin-top: 12px; }
 .toggle { color: var(--text-muted); font-size: 13px; }
 .toggle input { margin-right: 8px; }

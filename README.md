@@ -1,30 +1,38 @@
 # Paddle Cast
 
-Static site that displays forecasted kayaking windows for Morro Bay, CA.
+Paddle Cast is a lightweight, zero-backend web app that highlights the best upcoming kayaking windows for Morro Bay, California.
 
-Quickstart (local):
+- Live site: [paddlecast.org](https://paddlecast.org)
+- Source: [github.com/kylenessen/PaddleCast](https://github.com/kylenessen/PaddleCast)
 
-1. Install deps and generate data
+### What it does
+- Pulls NOAA tides and NWS hourly weather forecasts
+- Scores conditions and surfaces paddling windows (duration, tide height, wind, fog/rain considerations)
+- Renders simple charts and at‑a‑glance cards for each day
+- Updates automatically throughout the day via GitHub Actions
 
-```bash
-pip3 install -r requirements.txt
-python3 scripts/fetch_and_score.py
-```
+### How it works
+- A scheduled workflow fetches and scores data, writing a single `data/data.json` file
+- The static frontend (`src/`) fetches that JSON and renders the UI client‑side
+- Everything is served on GitHub Pages (no servers or databases)
 
-2. Serve locally
+### Data sources
+- NOAA Tides & Currents predictions (MLLW)
+- National Weather Service hourly forecast (wind, temperature, short forecast)
 
-```bash
-python3 -m http.server 8000
-# Visit http://localhost:8000/src/index.html
-```
+### Scoring at a glance
+- Minimum tide threshold and minimum window duration
+- Wind, fog/visibility, rain, and time‑of‑day adjustments
+- Final score shown as stars with an intuitive color scale
 
-GitHub Pages
+### Project structure
+- `src/`: Static site (HTML/CSS/JS)
+- `scripts/fetch_and_score.py`: Data retrieval and scoring
+- `data/data.json`: Latest generated dataset (also published to Pages)
+- `SPEC.md`: Technical details of the MVP and workflows
 
-- The `Deploy Frontend` workflow syncs `src/` to the `gh-pages` branch root.
-- The `Update Data` workflow runs every 3 hours and writes `data/data.json` into `gh-pages`.
-- Configure Pages to serve from the `gh-pages` branch, root.
+### Notes
+- Frontend deploys automatically from `main` to the `gh-pages` branch
+- Data refresh runs on a schedule and writes into `gh-pages/data/data.json`
 
-Configuration
-
-- `MIN_TIDE_FT` and `MIN_DURATION_MIN` can be set via environment variables in the workflow.
-
+For deeper technical details or to contribute, see `SPEC.md` and the Python script in `scripts/`.
