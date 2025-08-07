@@ -1,27 +1,26 @@
-name: Update Data
+name: Build docs on main
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'requirements.txt'
+      - '.github/workflows/update-data.yml'
   schedule:
     - cron: '0 */3 * * *'  # every 3 hours
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: 'pages'
-  cancel-in-progress: false
+  contents: write
 
 jobs:
-  update:
+  build-docs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -41,27 +40,22 @@ jobs:
         run: |
           python scripts/fetch_and_score.py
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Download existing site artifact (if any)
+      - name: Build docs directory
         run: |
-          mkdir -p dist
-          cp -r src/* dist/
-          echo paddlecast.org > dist/CNAME
+          rm -rf docs
+          mkdir -p docs
+          cp -r src/* docs/
+          mkdir -p docs/data
+          cp -f data/data.json docs/data/data.json
+          echo paddlecast.org > docs/CNAME
 
-      - name: Place data.json into dist
+      - name: Commit docs to main
         run: |
-          mkdir -p dist/data
-          cp -f data/data.json dist/data/data.json
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-      - name: Deploy to Pages
-        uses: actions/deploy-pages@v4
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add docs
+          git commit -m 'Build docs (site + data) [skip ci]' || echo 'No changes'
+          git push
 
 name: Update Data
 

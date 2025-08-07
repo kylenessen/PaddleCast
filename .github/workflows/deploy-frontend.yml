@@ -1,49 +1,14 @@
-name: Deploy Frontend
+name: Disabled (replaced by docs workflow)
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'src/**'
-      - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: 'pages'
-  cancel-in-progress: true
-
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  noop:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Build site folder
-        run: |
-          mkdir -p dist
-          cp -r src/* dist/
-          echo paddlecast.org > dist/CNAME
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-      - name: Deploy to Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - run: echo "disabled"
 
 name: Deploy Frontend
 
