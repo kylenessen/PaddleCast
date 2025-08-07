@@ -58,7 +58,7 @@ function shouldIncludeWindow(dayDate, windowStartIso, windowEndIso, daylightStar
 }
 
 function renderDay(day, opts) {
-  const { allowEvening } = opts || { allowEvening: false };
+  const { allowEvening, thresholdFt, palette } = Object.assign({ allowEvening: false, thresholdFt: 2.5, palette: 'intuitive' }, opts || {});
   const daysEl = document.getElementById('days');
   const card = document.createElement('section');
   card.className = 'day-card';
@@ -143,7 +143,7 @@ function renderDay(day, opts) {
   const range = allowEvening
     ? { min: 0, max: 1440 }
     : { min: daylightMin, max: daylightMax };
-  window.renderDayChart(canvas, points, windows, range);
+  window.renderDayChart(canvas, points, windows, range, { thresholdFt, palette });
 }
 
 function clearDays() {
@@ -160,15 +160,26 @@ async function init() {
 
   const toggle = document.getElementById('evening-toggle');
   const toggleLabel = document.getElementById('evening-toggle-label');
+  const paletteToggle = document.getElementById('palette-toggle');
+  const paletteToggleLabel = document.getElementById('palette-toggle-label');
 
   function renderAll() {
     clearDays();
-    (data.days || []).forEach(day => renderDay(day, { allowEvening: toggle.checked }));
+    const thresholdFt = (data.settings && Number.isFinite(data.settings.min_tide_ft)) ? data.settings.min_tide_ft : 2.5;
+    const palette = paletteToggle && paletteToggle.checked ? 'viridis' : 'intuitive';
+    (data.days || []).forEach(day => renderDay(day, { allowEvening: toggle.checked, thresholdFt, palette }));
   }
 
   if (toggle) {
     toggle.addEventListener('change', () => {
       toggleLabel.textContent = toggle.checked ? 'Include evening sessions' : 'Daylight sessions only';
+      renderAll();
+    });
+  }
+
+  if (paletteToggle) {
+    paletteToggle.addEventListener('change', () => {
+      paletteToggleLabel.textContent = paletteToggle.checked ? 'Color-blind palette (viridis)' : 'Intuitive colors (red→yellow→green)';
       renderAll();
     });
   }
