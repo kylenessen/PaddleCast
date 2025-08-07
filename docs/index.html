@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PaddleCast – Morro Bay</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>PaddleCast</h1>
+      <p class="subtitle">Forecasted kayaking windows for Morro Bay, CA</p>
+      <div class="controls">
+        <label class="toggle">
+          <input type="checkbox" id="evening-toggle" />
+          <span id="evening-toggle-label">Daylight sessions only</span>
+        </label>
+        <label class="toggle" style="margin-left:12px">
+          <input type="checkbox" id="palette-toggle" />
+          <span id="palette-toggle-label">Intuitive colors (red→yellow→green)</span>
+        </label>
+      </div>
+    </header>
+
+    <main id="content" class="container">
+      <section id="meta" class="meta"></section>
+      <section id="days" class="days"></section>
+      <section id="error" class="error hidden"></section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Data: NOAA Tides & Currents, NWS Weather. Updated periodically.</p>
+      <p><a href="./data/data.json" style="color: var(--accent)">View raw data.json</a></p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="./charts.js"></script>
+    <script src="./app.js"></script>
+  </body>
+  </html>
+
+
