@@ -31,6 +31,7 @@ window.renderDayChart = function renderDayChart(canvas, points) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,
       scales: {
         x: {
           type: 'linear',
@@ -43,7 +44,8 @@ window.renderDayChart = function renderDayChart(canvas, points) {
         },
         y: {
           title: { display: true, text: 'Feet (MLLW)' },
-          grid: { color: 'rgba(255,255,255,0.06)' }
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          suggestedMin: 0
         }
       },
       plugins: {

@@ -64,8 +64,10 @@ function renderDay(day) {
   header.appendChild(title);
   header.appendChild(sun);
 
+  const chartWrap = document.createElement('div');
+  chartWrap.className = 'chart-wrap';
   const canvas = document.createElement('canvas');
-  canvas.height = 220;
+  chartWrap.appendChild(canvas);
 
   const windowsWrap = document.createElement('div');
   windowsWrap.className = 'windows';
@@ -91,7 +93,7 @@ function renderDay(day) {
   }
 
   card.appendChild(header);
-  card.appendChild(canvas);
+  card.appendChild(chartWrap);
   card.appendChild(windowsWrap);
   daysEl.appendChild(card);
 
