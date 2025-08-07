@@ -1,49 +1,57 @@
 :root {
-  --bg: #0b132b;
-  --card: #1c2541;
-  --muted: #3a506b;
-  --accent: #5bc0be;
-  --text: #eaeaea;
-  --good: #2ecc71;
-  --warn: #f1c40f;
-  --bad: #e74c3c;
+  /* Muted light blue theme */
+  --bg: #eef4fb;
+  --card: #ffffff;
+  --muted: #c7d7eb;
+  --accent: #3e7bb6;
+  --text: #0f2a3f;
+  --text-muted: #49627a;
+  /* Score gradient endpoints for JS helpers */
+  --score-red: 231, 76, 60;     /* #e74c3c */
+  --score-yellow: 241, 196, 15; /* #f1c40f */
+  --score-blue: 62, 123, 182;   /* #3e7bb6 */
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
 
-.site-header { padding: 24px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08); }
-.site-header h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; }
-.subtitle { margin: 4px 0 0; color: #b9c4d0; font-size: 14px; }
-.controls { margin-top: 10px; }
-.toggle { color: #cdd6df; font-size: 13px; }
+.site-header { padding: 28px; text-align: center; border-bottom: 1px solid rgba(15,42,63,0.06); background: #f7fbff; }
+.site-header h1 { margin: 0; font-size: 34px; letter-spacing: 0.5px; font-weight: 800; color: var(--text); }
+.subtitle { margin: 6px 0 0; color: var(--text-muted); font-size: 15px; }
+.controls { margin-top: 12px; }
+.toggle { color: var(--text-muted); font-size: 13px; }
 .toggle input { margin-right: 8px; }
 
 .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
-.meta { margin-bottom: 16px; color: #b9c4d0; font-size: 14px; }
+.meta { margin-bottom: 16px; color: var(--text-muted); font-size: 14px; }
 
-.day-card { background: var(--card); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.day-card { background: var(--card); border: 1px solid rgba(15,42,63,0.08); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(15,42,63,0.05); }
 .day-header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-.day-title { font-size: 18px; margin: 0; }
-.sun { color: #ffd27d; font-size: 12px; }
+.day-title { font-size: 18px; margin: 0; color: var(--text); }
+.sun { color: #b28f00; font-size: 12px; }
 
 .windows { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-top: 8px; }
-.window { background: #15203a; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px; }
-.score { font-weight: 700; color: var(--accent); }
-.conditions { color: #cdd6df; font-size: 13px; }
+.window { background: #f5f9ff; border: 1px solid rgba(15,42,63,0.06); border-radius: 10px; padding: 10px; }
+.score { font-weight: 800; color: var(--accent); }
+.conditions { color: var(--text-muted); font-size: 13px; }
 
 .chart-wrap { height: 220px; position: relative; }
 .chart-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
 
-.error { background: #3b1a1a; border: 1px solid #7a2a2a; color: #ffdada; padding: 12px; border-radius: 8px; }
+.error { background: #ffecec; border: 1px solid #e7a3a3; color: #7a1f1f; padding: 12px; border-radius: 8px; }
 .hidden { display: none; }
 
-.site-footer { text-align: center; padding: 24px; color: #98a5b3; font-size: 12px; }
+.site-footer { text-align: center; padding: 24px; color: var(--text-muted); font-size: 12px; }
 
-.badge { display: inline-block; padding: 2px 6px; border-radius: 6px; background: var(--muted); color: #fff; font-size: 12px; }
-.badge.good { background: var(--good); }
-.badge.warn { background: var(--warn); color: #000; }
-.badge.bad { background: var(--bad); }
+.badge { display: inline-block; padding: 2px 6px; border-radius: 6px; background: var(--muted); color: #0f2a3f; font-size: 12px; font-weight: 700; }
+.badge.good { background: rgba(var(--score-blue), 0.28); color: var(--text); }
+.badge.warn { background: rgba(var(--score-yellow), 0.32); color: #5a4b00; }
+.badge.bad { background: rgba(var(--score-red), 0.32); color: #6b1212; }
+
+/* Star rating inside badges */
+.stars { position: relative; display: inline-block; line-height: 1; font-size: 16px; letter-spacing: 1px; }
+.stars .base { color: rgba(15,42,63,0.25); }
+.stars .fill { position: absolute; top: 0; left: 0; width: var(--fill, 0%); overflow: hidden; white-space: nowrap; color: var(--star-color, #FFD700); filter: drop-shadow(0 0 1px rgba(0,0,0,0.1)); }
 
 

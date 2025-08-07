@@ -16,29 +16,8 @@ window.renderDayChart = function renderDayChart(canvas, points, windows, range) 
   const xmin = (range && Number.isFinite(range.min)) ? range.min : 0;
   const xmax = (range && Number.isFinite(range.max)) ? range.max : 1440;
 
-  const windowPlugin = {
-    id: 'windowShading',
-    beforeDatasetsDraw(chart) {
-      const { ctx, chartArea, scales } = chart;
-      if (!chartArea) return;
-      const { left, right, top, bottom } = chartArea;
-      const xScale = scales.x;
-      ctx.save();
-      regions.forEach(r => {
-        const x1 = xScale.getPixelForValue(r.start);
-        const x2 = xScale.getPixelForValue(r.end);
-        const w = Math.max(0, Math.min(right, x2) - Math.max(left, x1));
-        if (w <= 0) return;
-        // Color based on score
-        let fill = 'rgba(255,165,0,0.06)'; // warn
-        if (r.score >= 4) fill = 'rgba(91,192,190,0.14)';
-        else if (r.score >= 3) fill = 'rgba(91,192,190,0.09)';
-        ctx.fillStyle = fill;
-        ctx.fillRect(Math.max(left, x1), top, w, bottom - top);
-      });
-      ctx.restore();
-    }
-  };
+  // Remove window overlays per request
+  const windowPlugin = null;
 
   new Chart(ctx, {
     type: 'line',
@@ -48,8 +27,8 @@ window.renderDayChart = function renderDayChart(canvas, points, windows, range) 
           label: 'Tide (ft)',
           data,
           parsing: false,
-          borderColor: '#5bc0be',
-          backgroundColor: 'rgba(91,192,190,0.2)',
+          borderColor: '#3e7bb6',
+          backgroundColor: 'rgba(62,123,182,0.16)',
           tension: 0.3,
           fill: true,
           pointRadius: 0,
@@ -71,11 +50,11 @@ window.renderDayChart = function renderDayChart(canvas, points, windows, range) 
             callback: (v) => formatTick(v),
             maxTicksLimit: 12
           },
-          grid: { color: 'rgba(255,255,255,0.06)' }
+          grid: { color: 'rgba(15,42,63,0.06)' }
         },
         y: {
           title: { display: true, text: 'Feet (MLLW)' },
-          grid: { color: 'rgba(255,255,255,0.06)' },
+          grid: { color: 'rgba(15,42,63,0.06)' },
           suggestedMin: 0
         }
       },
@@ -89,7 +68,7 @@ window.renderDayChart = function renderDayChart(canvas, points, windows, range) 
         }
       }
     },
-    plugins: [windowPlugin]
+    plugins: windowPlugin ? [windowPlugin] : []
   });
 };
 

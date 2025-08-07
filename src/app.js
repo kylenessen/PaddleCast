@@ -30,14 +30,22 @@ function formatHM(mins) {
 }
 
 function formatScore(score) {
-  return `${score.toFixed(1)}★`;
+  // Render 5-star rating with half-star precision using overlay technique
+  const s = Math.max(0, Math.min(5, score));
+  const pct = (s / 5) * 100; // 0..100
+  return `
+    <span class="stars" style="--fill:${pct.toFixed(0)}%; --star-color:#FFD700">
+      <span class="base">★★★★★</span>
+      <span class="fill">★★★★★</span>
+    </span>
+  `;
 }
 
-function windowBadge(score) {
-  if (score >= 4.0) return 'badge good';
-  if (score >= 3.0) return 'badge';
-  if (score > 0) return 'badge warn';
-  return 'badge bad';
+// color ramp removed; stars now indicate quality with bright yellow fill
+
+function windowBadgeAttrs() {
+  // neutral badge; stars provide emphasis
+  return 'class="badge"';
 }
 
 function shouldIncludeWindow(dayDate, windowStartIso, windowEndIso, daylightStartM, daylightEndM, allowEvening) {
@@ -106,7 +114,7 @@ function renderDay(day, opts) {
       const startM = minutesSinceMidnight(day.date, w.start);
       const endM = minutesSinceMidnight(day.date, w.end);
       el.innerHTML = `
-        <div><span class="${windowBadge(w.score)}">${formatScore(w.score)}</span></div>
+        <div><span ${windowBadgeAttrs()}>${formatScore(w.score)}</span></div>
         <div><strong>${formatHM(startM)}</strong> – <strong>${formatHM(endM)}</strong></div>
         <div class="conditions">${w.conditions}</div>
         <div>Avg tide: ${w.avg_tide_ft.toFixed(1)} ft · Avg wind: ${Math.round(w.avg_wind_mph)} mph</div>
