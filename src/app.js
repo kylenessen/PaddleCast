@@ -99,7 +99,12 @@ function renderDay(day) {
 
   // Prepare chart data: X as minutes since midnight
   const points = (day.tide_points || []).map(p => ({ x: minutesSinceMidnight(day.date, p.time), y: p.height_ft }));
-  window.renderDayChart(canvas, points);
+  const windows = (day.windows || []).map(w => ({
+    start: minutesSinceMidnight(day.date, w.start),
+    end: minutesSinceMidnight(day.date, w.end),
+    score: w.score
+  }));
+  window.renderDayChart(canvas, points, windows);
 }
 
 async function init() {

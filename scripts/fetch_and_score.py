@@ -43,6 +43,7 @@ MIN_TIDE_FT = float(os.getenv("MIN_TIDE_FT", "2.5"))
 MIN_DURATION_MIN = int(os.getenv("MIN_DURATION_MIN", "60"))
 
 DAYS_AHEAD = 7
+WINDOW_BLOCK_MIN = int(os.getenv("WINDOW_BLOCK_MIN", "120"))
 
 
 # ----------------------------
@@ -236,6 +237,20 @@ def window_weather_stats(start: datetime, end: datetime, hourly: Dict[datetime, 
     return avg_wind, avg_temp, forecasts, temps, pops
 
 
+def _has_dense_fog(forecasts: List[str]) -> bool:
+    for f in forecasts:
+        text = (f or "").lower().strip()
+        if not text:
+            continue
+        if "dense fog" in text:
+            return True
+        if "widespread fog" in text:
+            return True
+        if text == "fog":
+            return True
+    return False
+
+
 def score_window(avg_wind: float, avg_temp: float, forecasts: List[str], pops: List[float], start: datetime, end: datetime, sunset: Optional[datetime]) -> float:
     # Base score
     score = 3.0
@@ -250,8 +265,8 @@ def score_window(avg_wind: float, avg_temp: float, forecasts: List[str], pops: L
     else:
         score += 1.0
 
-    # Fog kill
-    if any("fog" in (f or "").lower() for f in forecasts):
+    # Fog rule: only kill for dense/widespread fog; "Patchy Fog" does NOT penalize
+    if _has_dense_fog(forecasts):
         return 0.0
 
     # Rain penalty (any PoP > 0)
@@ -302,6 +317,11 @@ def build():
     # Fetch
     tide_pts = fetch_tide_predictions(start_day, end_day)
     hourly = fetch_nws_hourly()
+    forecasts_seen = sorted({
+        (info.get("shortForecast") or "").strip()
+        for info in hourly.values()
+        if (info.get("shortForecast") or "").strip()
+    })
 
     # Group tides by local date
     tides_by_day: Dict[str, List[Tuple[datetime, float]]] = defaultdict(list)
@@ -333,18 +353,26 @@ def build():
 
         windows = find_windows(points)
         windows_out = []
+
+        # Split into fixed-size blocks for clearer scoring/visualization
         for (w_start, w_end, w_pts) in windows:
-            avg_tide = mean([h for (_t, h) in w_pts]) if w_pts else 0.0
-            avg_wind, avg_temp, forecasts, temps, pops = window_weather_stats(w_start, w_end, hourly)
-            score = score_window(avg_wind, avg_temp, forecasts, pops, w_start, w_end, ss)
-            windows_out.append({
-                "start": w_start.isoformat(),
-                "end": w_end.isoformat(),
-                "avg_tide_ft": round(avg_tide, 2),
-                "avg_wind_mph": round(avg_wind, 1),
-                "conditions": summarize_conditions(forecasts, avg_wind),
-                "score": score,
-            })
+            cursor = w_start
+            while cursor < w_end:
+                seg_end = min(cursor + timedelta(minutes=WINDOW_BLOCK_MIN), w_end)
+                # Points within this segment
+                seg_pts = [(t, h) for (t, h) in w_pts if cursor <= t <= seg_end]
+                avg_tide = mean([h for (_t, h) in seg_pts]) if seg_pts else 0.0
+                avg_wind, avg_temp, forecasts, temps, pops = window_weather_stats(cursor, seg_end, hourly)
+                score = score_window(avg_wind, avg_temp, forecasts, pops, cursor, seg_end, ss)
+                windows_out.append({
+                    "start": cursor.isoformat(),
+                    "end": seg_end.isoformat(),
+                    "avg_tide_ft": round(avg_tide, 2),
+                    "avg_wind_mph": round(avg_wind, 1),
+                    "conditions": summarize_conditions(forecasts, avg_wind),
+                    "score": score,
+                })
+                cursor = seg_end
 
         tide_points_out = [
             {"time": t.isoformat(), "height_ft": round(h, 2)} for (t, h) in points
@@ -365,6 +393,7 @@ def build():
             "min_tide_ft": MIN_TIDE_FT,
             "min_duration_min": MIN_DURATION_MIN,
         },
+        "nws_short_forecasts_seen": forecasts_seen,
         "days": days_out,
     }
 

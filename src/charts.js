@@ -7,9 +7,35 @@ function formatTick(mins) {
   return `${h.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
 }
 
-window.renderDayChart = function renderDayChart(canvas, points) {
+window.renderDayChart = function renderDayChart(canvas, points, windows) {
   const ctx = canvas.getContext('2d');
   const data = points.sort((a, b) => a.x - b.x);
+
+  const regions = (windows || []).map(w => ({ start: w.start, end: w.end, score: w.score }));
+
+  const windowPlugin = {
+    id: 'windowShading',
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea) return;
+      const { left, right, top, bottom } = chartArea;
+      const xScale = scales.x;
+      ctx.save();
+      regions.forEach(r => {
+        const x1 = xScale.getPixelForValue(r.start);
+        const x2 = xScale.getPixelForValue(r.end);
+        const w = Math.max(0, Math.min(right, x2) - Math.max(left, x1));
+        if (w <= 0) return;
+        // Color based on score
+        let fill = 'rgba(255,165,0,0.06)'; // warn
+        if (r.score >= 4) fill = 'rgba(91,192,190,0.14)';
+        else if (r.score >= 3) fill = 'rgba(91,192,190,0.09)';
+        ctx.fillStyle = fill;
+        ctx.fillRect(Math.max(left, x1), top, w, bottom - top);
+      });
+      ctx.restore();
+    }
+  };
 
   new Chart(ctx, {
     type: 'line',
@@ -57,7 +83,8 @@ window.renderDayChart = function renderDayChart(canvas, points) {
           }
         }
       }
-    }
+    },
+    plugins: [windowPlugin]
   });
 };
 
