@@ -6,10 +6,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: gh-pages-deploy
+  group: 'pages'
   cancel-in-progress: false
 
 jobs:
@@ -19,7 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,22 +40,28 @@ jobs:
           WINDOW_BLOCK_MIN: '120'
         run: |
           python scripts/fetch_and_score.py
-          cp data/data.json /tmp/paddlecast_data.json
 
-      - name: Prepare gh-pages working tree
-        run: |
-          git fetch origin gh-pages:gh-pages || true
-          git checkout gh-pages || git checkout --orphan gh-pages
-          mkdir -p data
-          cp -f /tmp/paddlecast_data.json data/data.json
-          git add data/data.json
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
-      - name: Commit and push data
+      - name: Download existing site artifact (if any)
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Update data [skip ci]' || echo 'No changes to commit'
-          git push origin gh-pages
+          mkdir -p dist
+          cp -r src/* dist/
+          echo paddlecast.org > dist/CNAME
+
+      - name: Place data.json into dist
+        run: |
+          mkdir -p dist/data
+          cp -f data/data.json dist/data/data.json
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to Pages
+        uses: actions/deploy-pages@v4
 
 name: Update Data
 
