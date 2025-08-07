@@ -259,11 +259,11 @@ def score_window(avg_wind: float, avg_temp: float, forecasts: List[str], pops: L
     if avg_wind > 10:
         return 0.0
     elif avg_wind >= 6:
-        score += 0.0
-    elif avg_wind >= 1:
         score += 0.5
+    elif avg_wind >= 3:
+        score += 0.1
     else:
-        score += 1.0
+        score += 1.5
 
     # Fog rule: only kill for dense/widespread fog; "Patchy Fog" does NOT penalize
     if _has_dense_fog(forecasts):
