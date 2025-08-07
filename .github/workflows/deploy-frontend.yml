@@ -2,6 +2,39 @@ name: Deploy Frontend
 
 on:
   push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: src
+          keep_files: true  # preserve data/ and other existing files on gh-pages
+          cname: paddlecast.org
+
+name: Deploy Frontend
+
+on:
+  push:
     branches: [main, master, GPT5-attempt]
     paths:
       - "src/**"
