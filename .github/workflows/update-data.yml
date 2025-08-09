@@ -12,18 +12,23 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source (default branch)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          path: source
           fetch-depth: 0
 
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages
-          fetch-depth: 0
+      - name: Prepare gh-pages worktree
+        run: |
+          if git ls-remote --exit-code origin gh-pages; then
+            git worktree add gh-pages origin/gh-pages
+          else
+            git worktree add gh-pages
+            cd gh-pages
+            git checkout --orphan gh-pages
+            git commit --allow-empty -m "Initialize gh-pages"
+            git push origin gh-pages
+            cd ..
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,7 +41,7 @@ jobs:
       - name: Generate data.json into gh-pages
         working-directory: gh-pages
         run: |
-          python ../source/scripts/fetch_and_score.py
+          python ../scripts/fetch_and_score.py
 
       - name: Commit and push data
         working-directory: gh-pages
