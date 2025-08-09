@@ -1,67 +1,8 @@
-name: Build docs on main
-
-on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'src/**'
-      - 'scripts/**'
-      - 'requirements.txt'
-      - '.github/workflows/update-data.yml'
-  schedule:
-    - cron: '0 */3 * * *'  # every 3 hours
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-jobs:
-  build-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Generate data.json
-        env:
-          MIN_TIDE_FT: '2.5'
-          MIN_DURATION_MIN: '60'
-          WINDOW_BLOCK_MIN: '120'
-        run: |
-          python scripts/fetch_and_score.py
-
-      - name: Build docs directory
-        run: |
-          rm -rf docs
-          mkdir -p docs
-          cp -r src/* docs/
-          mkdir -p docs/data
-          cp -f data/data.json docs/data/data.json
-          echo paddlecast.org > docs/CNAME
-
-      - name: Commit docs to main
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add docs
-          git commit -m 'Build docs (site + data) [skip ci]' || echo 'No changes'
-          git push
-
 name: Update Data
 
 on:
   schedule:
-    - cron: "0 */3 * * *" # every 3 hours
+    - cron: "0 * * * *" # every hour
   workflow_dispatch:
 
 jobs:
