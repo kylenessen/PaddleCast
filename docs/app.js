@@ -85,10 +85,13 @@ function renderDay(day, opts) {
     bits.push(`Moon ${mrTxt} / ${msTxt}`);
   }
   if (typeof day.moon_phase === 'number') {
+    // small inline phase glyph
+    const phase = day.moon_phase; // 0=new, 0.5=full
     const icon = document.createElement('span');
     icon.className = 'moon-icon';
-    icon.title = `Moon phase: ${(day.moon_phase * 100).toFixed(0)}% cycle`;
-    icon.dataset.phase = String(day.moon_phase);
+    icon.title = `Moon phase: ${(phase * 100).toFixed(0)}% cycle`;
+    // store phase on dataset for CSS mask drawing in ::before
+    icon.dataset.phase = String(phase);
     sun.appendChild(icon);
   }
   if (bits.length) {
