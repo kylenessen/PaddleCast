@@ -73,10 +73,31 @@ function renderDay(day, opts) {
 
   const sun = document.createElement('div');
   sun.className = 'sun';
+  const bits = [];
   if (day.sunrise && day.sunset) {
     const sr = new Date(day.sunrise);
     const ss = new Date(day.sunset);
-    sun.textContent = `Sunrise ${sr.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Sunset ${ss.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    bits.push(`Sun ${sr.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} / ${ss.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+  }
+  if (day.moonrise || day.moonset) {
+    const mrTxt = day.moonrise ? new Date(day.moonrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+    const msTxt = day.moonset ? new Date(day.moonset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+    bits.push(`Moon ${mrTxt} / ${msTxt}`);
+  }
+  if (typeof day.moon_phase === 'number') {
+    // small inline phase glyph
+    const phase = day.moon_phase; // 0=new, 0.5=full
+    const icon = document.createElement('span');
+    icon.className = 'moon-icon';
+    icon.title = `Moon phase: ${(phase * 100).toFixed(0)}% cycle`;
+    // store phase on dataset for CSS mask drawing in ::before
+    icon.dataset.phase = String(phase);
+    sun.appendChild(icon);
+  }
+  if (bits.length) {
+    const span = document.createElement('span');
+    span.textContent = bits.join(' · ');
+    sun.appendChild(span);
   }
 
   header.appendChild(title);
@@ -140,10 +161,19 @@ function renderDay(day, opts) {
     end: minutesSinceMidnight(day.date, w.end),
     score: w.score
   }));
+  const markers = [];
+  if (day.sunrise) markers.push({ x: minutesSinceMidnight(day.date, day.sunrise), type: 'sunrise' });
+  if (day.sunset) markers.push({ x: minutesSinceMidnight(day.date, day.sunset), type: 'sunset' });
+  if (day.moonrise) markers.push({ x: minutesSinceMidnight(day.date, day.moonrise), type: 'moonrise' });
+  if (day.moonset) markers.push({ x: minutesSinceMidnight(day.date, day.moonset), type: 'moonset' });
+  const arcs = {
+    daylight: (day.sunrise && day.sunset) ? { start: minutesSinceMidnight(day.date, day.sunrise), end: minutesSinceMidnight(day.date, day.sunset) } : null,
+    moonlight: (day.moonrise && day.moonset) ? { start: minutesSinceMidnight(day.date, day.moonrise), end: minutesSinceMidnight(day.date, day.moonset) } : null
+  };
   const range = allowEvening
     ? { min: 0, max: 1440 }
     : { min: daylightMin, max: daylightMax };
-  window.renderDayChart(canvas, points, windows, range, { thresholdFt, palette });
+  window.renderDayChart(canvas, points, windows, range, { thresholdFt, palette, markers, arcs });
 }
 
 function clearDays() {

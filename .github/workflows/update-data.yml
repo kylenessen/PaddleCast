@@ -1,53 +1,58 @@
-name: Update Data
+name: Build docs on main
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'requirements.txt'
+      - '.github/workflows/update-data.yml'
   schedule:
-    - cron: "0 * * * *" # every hour
+    - cron: '0 */3 * * *'  # every 3 hours
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  update:
+  build-docs:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Prepare gh-pages worktree
-        run: |
-          if git ls-remote --exit-code origin gh-pages; then
-            git worktree add gh-pages origin/gh-pages
-          else
-            git worktree add gh-pages
-            cd gh-pages
-            git checkout --orphan gh-pages
-            git commit --allow-empty -m "Initialize gh-pages"
-            git push origin gh-pages
-            cd ..
-          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests pytz
-
-      - name: Generate data.json into gh-pages
-        working-directory: gh-pages
         run: |
-          python ../scripts/fetch_and_score.py
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Commit and push data
-        working-directory: gh-pages
+      - name: Generate data.json
+        env:
+          MIN_TIDE_FT: '2.5'
+          MIN_DURATION_MIN: '60'
+          WINDOW_BLOCK_MIN: '120'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/data.json
-          git commit -m "Update data [skip ci]" || echo "No changes"
-          git push origin gh-pages
+          python scripts/fetch_and_score.py
+
+      - name: Build docs directory
+        run: |
+          rm -rf docs
+          mkdir -p docs
+          cp -r src/* docs/
+          mkdir -p docs/data
+          cp -f data/data.json docs/data/data.json
+          echo paddlecast.org > docs/CNAME
+
+      - name: Commit docs to main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add docs
+          git commit -m 'Build docs (site + data) [skip ci]' || echo 'No changes'
+          git push

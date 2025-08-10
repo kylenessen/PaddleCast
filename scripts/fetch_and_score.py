@@ -161,8 +161,84 @@ def parse_wind_speed(text: str) -> Optional[float]:
     return mean(nums)
 
 
-def fetch_sun_times(day_local: datetime) -> Tuple[Optional[datetime], Optional[datetime]]:
-    # sunrise-sunset.org returns ISO in UTC
+def _format_offset(dt: datetime) -> str:
+    off = dt.utcoffset() or timedelta(0)
+    total_min = int(off.total_seconds() // 60)
+    sign = '+' if total_min >= 0 else '-'
+    total_min = abs(total_min)
+    hh = total_min // 60
+    mm = total_min % 60
+    return f"{sign}{hh:02d}:{mm:02d}"
+
+
+def fetch_astronomy_range(start_day_local: datetime, end_day_local: datetime) -> Dict[str, dict]:
+    """
+    Fetch sunrise/sunset and moonrise/moonset + moon phase per day using
+    MET Norway Sunrise API (no key, requires UA). Returns mapping by YYYY-MM-DD
+    with local-time ISO strings. Moon phase normalized to 0..1 (0=new, 0.5=full).
+    """
+    out: Dict[str, dict] = {}
+    headers = {"User-Agent": "paddlecast/1.0 (github.com/kylenessen/PaddleCast)"}
+    num_days = (end_day_local - start_day_local).days
+    for day_dt in daterange(start_day_local, num_days):
+        date_key = day_dt.strftime("%Y-%m-%d")
+        off = _format_offset(day_dt)
+        # SUN
+        sun_url = (
+            f"https://api.met.no/weatherapi/sunrise/3.0/sun?lat={LAT}&lon={LON}&date={date_key}&offset={off}"
+        )
+        sunrise_iso: Optional[str] = None
+        sunset_iso: Optional[str] = None
+        try:
+            rs = requests.get(sun_url, timeout=30, headers=headers)
+            rs.raise_for_status()
+            js = rs.json()
+            props = js.get("properties", {})
+            sr = props.get("sunrise", {})
+            ss = props.get("sunset", {})
+            sunrise_iso = sr.get("time") if isinstance(sr, dict) else None
+            sunset_iso = ss.get("time") if isinstance(ss, dict) else None
+        except Exception:
+            # Fallback for sunrise/sunset
+            sr_f, ss_f = fetch_sun_times_legacy(day_dt)
+            sunrise_iso = sr_f.isoformat() if sr_f else None
+            sunset_iso = ss_f.isoformat() if ss_f else None
+
+        # MOON
+        moon_url = (
+            f"https://api.met.no/weatherapi/sunrise/3.0/moon?lat={LAT}&lon={LON}&date={date_key}&offset={off}"
+        )
+        moonrise_iso: Optional[str] = None
+        moonset_iso: Optional[str] = None
+        moon_phase_norm: Optional[float] = None
+        try:
+            rm = requests.get(moon_url, timeout=30, headers=headers)
+            rm.raise_for_status()
+            jm = rm.json()
+            props_m = jm.get("properties", {})
+            mr = props_m.get("moonrise", {})
+            ms = props_m.get("moonset", {})
+            moonrise_iso = mr.get("time") if isinstance(mr, dict) else None
+            moonset_iso = ms.get("time") if isinstance(ms, dict) else None
+            # MET returns moonphase degrees (0=new, 180=full). Normalize to [0,1].
+            phase_deg = props_m.get("moonphase")
+            if isinstance(phase_deg, (int, float)):
+                moon_phase_norm = (float(phase_deg) % 360.0) / 360.0
+        except Exception:
+            pass
+
+        out[date_key] = {
+            "sunrise": sunrise_iso,
+            "sunset": sunset_iso,
+            "moonrise": moonrise_iso,
+            "moonset": moonset_iso,
+            "moon_phase": moon_phase_norm,
+        }
+    return out
+
+
+def fetch_sun_times_legacy(day_local: datetime) -> Tuple[Optional[datetime], Optional[datetime]]:
+    """Legacy fallback to sunrise-sunset.org for sunrise/sunset only."""
     date_str = day_local.strftime("%Y-%m-%d")
     url = f"https://api.sunrise-sunset.org/json?lat={LAT}&lng={LON}&date={date_str}&formatted=0"
     try:
@@ -317,6 +393,7 @@ def build():
     # Fetch
     tide_pts = fetch_tide_predictions(start_day, end_day)
     hourly = fetch_nws_hourly()
+    astronomy_map = fetch_astronomy_range(start_day, end_day)
     forecasts_seen = sorted({
         (info.get("shortForecast") or "").strip()
         for info in hourly.values()
@@ -337,19 +414,25 @@ def build():
     for day_dt in daterange(start_day, DAYS_AHEAD):
         date_key = day_dt.strftime("%Y-%m-%d")
         points = tides_by_day.get(date_key, [])
+        astro = astronomy_map.get(date_key, {})
+        sr_iso = astro.get("sunrise")
+        ss_iso = astro.get("sunset")
+        mr_iso = astro.get("moonrise")
+        ms_iso = astro.get("moonset")
+        phase_val = astro.get("moon_phase")
         if not points:
-            # Still include day stub with sunrise/sunset if available
-            sr, ss = fetch_sun_times(day_dt)
+            # Day stub with available astronomy
             days_out.append({
                 "date": date_key,
-                "sunrise": sr.isoformat() if sr else None,
-                "sunset": ss.isoformat() if ss else None,
+                "sunrise": sr_iso,
+                "sunset": ss_iso,
+                "moonrise": mr_iso,
+                "moonset": ms_iso,
+                "moon_phase": phase_val,
                 "tide_points": [],
                 "windows": [],
             })
             continue
-
-        sr, ss = fetch_sun_times(day_dt)
 
         windows = find_windows(points)
         windows_out = []
@@ -363,7 +446,9 @@ def build():
                 seg_pts = [(t, h) for (t, h) in w_pts if cursor <= t <= seg_end]
                 avg_tide = mean([h for (_t, h) in seg_pts]) if seg_pts else 0.0
                 avg_wind, avg_temp, forecasts, temps, pops = window_weather_stats(cursor, seg_end, hourly)
-                score = score_window(avg_wind, avg_temp, forecasts, pops, cursor, seg_end, ss)
+                # Use sunset time for bonus if available
+                sunset_dt = parse_iso(ss_iso) if ss_iso else None
+                score = score_window(avg_wind, avg_temp, forecasts, pops, cursor, seg_end, sunset_dt)
                 windows_out.append({
                     "start": cursor.isoformat(),
                     "end": seg_end.isoformat(),
@@ -380,8 +465,11 @@ def build():
 
         days_out.append({
             "date": date_key,
-            "sunrise": sr.isoformat() if sr else None,
-            "sunset": ss.isoformat() if ss else None,
+            "sunrise": sr_iso,
+            "sunset": ss_iso,
+            "moonrise": mr_iso,
+            "moonset": ms_iso,
+            "moon_phase": phase_val,
             "tide_points": tide_points_out,
             "windows": windows_out,
         })

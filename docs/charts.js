@@ -79,6 +79,8 @@ window.renderDayChart = function renderDayChart(canvas, points, windows, range, 
 
   const thresholdFt = (opts && Number.isFinite(opts.thresholdFt)) ? opts.thresholdFt : 2.5;
   const palette = (opts && opts.palette) || 'intuitive';
+  const markers = (opts && Array.isArray(opts.markers)) ? opts.markers : [];
+  const arcs = (opts && opts.arcs) || {};
 
   const segmentColors = buildSegmentStyles(data, regions, palette);
 
@@ -108,8 +110,68 @@ window.renderDayChart = function renderDayChart(canvas, points, windows, range, 
     }
   };
 
-  // Remove window overlays per request
-  const windowPlugin = null;
+  // Plugin to draw sunrise/sunset (yellow) and moonrise/moonset (white) dots at top of tide line
+  const astroMarkersPlugin = {
+    id: 'astroMarkers',
+    afterDatasetsDraw(chart) {
+      const yScale = chart.scales.y;
+      const xScale = chart.scales.x;
+      if (!yScale || !xScale) return;
+      const ds = chart.data.datasets[0];
+      if (!ds || !Array.isArray(ds.data) || ds.data.length === 0) return;
+      const ctx2 = chart.ctx;
+      ctx2.save();
+      markers.forEach(m => {
+        const x = xScale.getPixelForValue(m.x);
+        // Find y on the tide curve: pick nearest point by x
+        let nearest = ds.data[0];
+        let bestDx = Infinity;
+        for (let i = 0; i < ds.data.length; i++) {
+          const p = ds.data[i];
+          const dx = Math.abs(p.x - m.x);
+          if (dx < bestDx) { bestDx = dx; nearest = p; }
+        }
+        const y = yScale.getPixelForValue(nearest.y);
+        const radius = 4;
+        const color = (m.type === 'sunrise' || m.type === 'sunset') ? 'rgba(241,196,15,0.95)' : 'rgba(255,255,255,0.95)';
+        const stroke = (m.type === 'sunrise' || m.type === 'sunset') ? 'rgba(160,120,0,0.9)' : 'rgba(200,200,200,0.9)';
+        ctx2.beginPath();
+        ctx2.arc(x, y, radius, 0, Math.PI * 2);
+        ctx2.fillStyle = color;
+        ctx2.fill();
+        ctx2.lineWidth = 1.5;
+        ctx2.strokeStyle = stroke;
+        ctx2.stroke();
+      });
+      ctx2.restore();
+    }
+  };
+
+  // Plugin to draw daylight and moonlight arcs as subtle top bands
+  const astroArcsPlugin = {
+    id: 'astroArcs',
+    beforeDraw(chart) {
+      const xScale = chart.scales.x;
+      const area = chart.chartArea;
+      if (!xScale || !area) return;
+      const ctx2 = chart.ctx;
+      const drawBand = (rng, fill, heightPx) => {
+        if (!rng) return;
+        const left = xScale.getPixelForValue(rng.start);
+        const right = xScale.getPixelForValue(rng.end);
+        const top = area.top + 2;
+        const h = heightPx;
+        ctx2.save();
+        ctx2.fillStyle = fill;
+        ctx2.fillRect(Math.min(left, right), top, Math.abs(right - left), h);
+        ctx2.restore();
+      };
+      // Daylight: pale yellow band
+      drawBand(arcs.daylight, 'rgba(241,196,15,0.15)', 6);
+      // Moonlight: pale white band below daylight band
+      drawBand(arcs.moonlight, 'rgba(255,255,255,0.12)', 4);
+    }
+  };
 
   new Chart(ctx, {
     type: 'line',
@@ -164,7 +226,7 @@ window.renderDayChart = function renderDayChart(canvas, points, windows, range, 
         }
       }
     },
-    plugins: [thresholdPlugin].concat(windowPlugin ? [windowPlugin] : [])
+    plugins: [thresholdPlugin, astroArcsPlugin, astroMarkersPlugin]
   });
 };
 
