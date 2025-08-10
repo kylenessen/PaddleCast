@@ -9,7 +9,7 @@ on:
       - 'requirements.txt'
       - '.github/workflows/update-data.yml'
   schedule:
-    - cron: '0 */3 * * *'  # every 3 hours
+    - cron: '0 * * * *'  # every hour
   workflow_dispatch:
 
 permissions:
