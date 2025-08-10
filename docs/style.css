@@ -34,6 +34,43 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); f
 .day-title { font-size: 18px; margin: 0; color: var(--text); }
 .sun { color: #b28f00; font-size: 12px; }
 
+/* Minimal moon phase icon drawn with CSS mask using radial-gradients */
+.moon-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fff 0 40%, #ddd 60% 100%);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1) inset, 0 0 1px rgba(0,0,0,0.2);
+  position: relative;
+}
+
+/* We approximate phase with a clipped overlay controlled by data-phase [0..1] */
+.moon-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #0f2a3f;
+  /* Default: new moon (covered) */
+  clip-path: circle(0% at 50% 50%);
+}
+
+/* Map coarse buckets for simplicity */
+.moon-icon[data-phase^="0."]::after { clip-path: circle(10% at 50% 50%); }
+.moon-icon[data-phase^="0.1"]::after { clip-path: circle(20% at 50% 50%); }
+.moon-icon[data-phase^="0.2"]::after { clip-path: circle(35% at 50% 50%); }
+.moon-icon[data-phase^="0.3"]::after { clip-path: circle(50% at 50% 50%); }
+.moon-icon[data-phase^="0.4"]::after { clip-path: circle(65% at 50% 50%); }
+.moon-icon[data-phase^="0.5"]::after { clip-path: circle(80% at 50% 50%); }
+.moon-icon[data-phase^="0.6"]::after { clip-path: circle(65% at 50% 50%); }
+.moon-icon[data-phase^="0.7"]::after { clip-path: circle(50% at 50% 50%); }
+.moon-icon[data-phase^="0.8"]::after { clip-path: circle(35% at 50% 50%); }
+.moon-icon[data-phase^="0.9"]::after { clip-path: circle(20% at 50% 50%); }
+.moon-icon[data-phase="1"]::after { clip-path: circle(0% at 50% 50%); }
+
 .windows { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-top: 8px; }
 .window { background: #f5f9ff; border: 1px solid rgba(15,42,63,0.06); border-radius: 10px; padding: 10px; }
 .score { font-weight: 800; color: var(--accent); }
