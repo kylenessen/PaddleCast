@@ -24,6 +24,7 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); f
 .controls { margin-top: 12px; }
 .toggle { color: var(--text-muted); font-size: 13px; }
 .toggle input { margin-right: 8px; }
+.wx-controls { display: inline-flex; gap: 12px; align-items: center; margin-left: 16px; flex-wrap: wrap; }
 
 .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
@@ -79,6 +80,13 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); f
 .chart-wrap { height: 220px; position: relative; }
 .chart-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
 
+/* Weather lane */
+.weather-lane { margin-top: 6px; display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; }
+.wx-block { position: relative; height: 16px; border-radius: 3px; background: rgba(15,42,63,0.08); overflow: hidden; }
+.wx-block .temp { position: absolute; right: 2px; top: 0; font-size: 10px; color: rgba(15,42,63,0.9); mix-blend-mode: multiply; }
+.wx-block .cond { position: absolute; left: 2px; top: -2px; font-size: 12px; }
+
+
 .error { background: #ffecec; border: 1px solid #e7a3a3; color: #7a1f1f; padding: 12px; border-radius: 8px; }
 .hidden { display: none; }
 
@@ -93,5 +101,4 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); f
 .stars { position: relative; display: inline-block; line-height: 1; font-size: 16px; letter-spacing: 1px; }
 .stars .base { color: rgba(15,42,63,0.25); }
 .stars .fill { position: absolute; top: 0; left: 0; width: var(--fill, 0%); overflow: hidden; white-space: nowrap; color: var(--star-color, #FFD700); filter: drop-shadow(0 0 1px rgba(0,0,0,0.1)); }
-
 

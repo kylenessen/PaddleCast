@@ -96,17 +96,35 @@ def ensure_dir(path: str) -> None:
 
 
 def fetch_tide_predictions(start_local_date: datetime, end_local_date: datetime) -> List[Tuple[datetime, float]]:
-    begin_date = start_local_date.strftime("%Y%m%d")
-    end_date = end_local_date.strftime("%Y%m%d")
-    url = (
-        "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
-        f"?product=predictions&begin_date={begin_date}&end_date={end_date}"
-        f"&datum=MLLW&station={STATION_ID}&time_zone=lst_ldt&units=english"
-        f"&interval={TIDE_INTERVAL_MIN}&format=json"
-    )
-    resp = requests.get(url, timeout=30)
+    """Fetch NOAA tide predictions using explicit local date-times and headers.
+
+    Uses encoded params to avoid spacing/format issues and surfaces API errors.
+    """
+    # Normalize to full-day range [00:00, 23:59] in local time
+    start_dt = start_local_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    # end_local_date is exclusive; back up one minute to include the last day
+    end_dt = (end_local_date - timedelta(minutes=1)).replace(second=0, microsecond=0)
+
+    params = {
+        "product": "predictions",
+        "begin_date": start_dt.strftime("%Y%m%d %H:%M"),
+        "end_date": end_dt.strftime("%Y%m%d %H:%M"),
+        "datum": "MLLW",
+        "station": STATION_ID,
+        "time_zone": "lst_ldt",
+        "units": "english",
+        "interval": str(TIDE_INTERVAL_MIN),
+        "format": "json",
+    }
+    headers = {"User-Agent": "paddlecast/1.0 (github.com/kylenessen/PaddleCast)"}
+    url = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
+    resp = requests.get(url, params=params, headers=headers, timeout=30)
     resp.raise_for_status()
     data = resp.json()
+    if isinstance(data, dict) and data.get("error"):
+        # Surface a helpful message so empty results aren't silent
+        msg = data.get("error", {}).get("message") or "NOAA error"
+        raise RuntimeError(f"NOAA predictions error: {msg}")
     predictions = data.get("predictions", [])
     out: List[Tuple[datetime, float]] = []
     for p in predictions:
@@ -137,14 +155,18 @@ def fetch_nws_hourly() -> Dict[datetime, dict]:
         # Normalize to local for alignment
         start_local = to_local(start)
         wind_mph = parse_wind_speed(p.get("windSpeed", ""))
+        wind_gust_mph = parse_wind_speed(p.get("windGust", ""))
         pop = None
         pop_obj = p.get("probabilityOfPrecipitation") or {}
         if isinstance(pop_obj, dict):
             pop = pop_obj.get("value")
         entry = {
             "wind_mph": wind_mph if wind_mph is not None else 0.0,
+            "wind_gust_mph": wind_gust_mph if wind_gust_mph is not None else None,
+            "wind_dir": p.get("windDirection"),
             "temperature_f": p.get("temperature"),
             "shortForecast": p.get("shortForecast", ""),
+            "icon": p.get("icon"),
             "pop_percent": pop if pop is not None else 0.0,
         }
         out[start_local.replace(minute=0, second=0, microsecond=0)] = entry
@@ -420,6 +442,33 @@ def build():
         mr_iso = astro.get("moonrise")
         ms_iso = astro.get("moonset")
         phase_val = astro.get("moon_phase")
+        # Build per-hour weather points for this day (0..23)
+        wx_points = []
+        base_day = day_dt.replace(minute=0, second=0, microsecond=0)
+        for h in range(24):
+            hour_dt = base_day.replace(hour=h)
+            info = hourly.get(hour_dt)
+            if info is None:
+                wx_points.append({
+                    "time": hour_dt.isoformat(),
+                    "wind_mph": 0.0,
+                    "wind_gust_mph": None,
+                    "wind_dir": None,
+                    "temperature_f": None,
+                    "condition": "",
+                    "icon": None,
+                })
+            else:
+                wx_points.append({
+                    "time": hour_dt.isoformat(),
+                    "wind_mph": float(info.get("wind_mph", 0.0)),
+                    "wind_gust_mph": (float(info["wind_gust_mph"]) if isinstance(info.get("wind_gust_mph"), (int, float)) else None),
+                    "wind_dir": info.get("wind_dir"),
+                    "temperature_f": (float(info["temperature_f"]) if isinstance(info.get("temperature_f"), (int, float)) else None),
+                    "condition": info.get("shortForecast", ""),
+                    "icon": info.get("icon"),
+                })
+
         if not points:
             # Day stub with available astronomy
             days_out.append({
@@ -430,6 +479,7 @@ def build():
                 "moonset": ms_iso,
                 "moon_phase": phase_val,
                 "tide_points": [],
+                "weather_points": wx_points,
                 "windows": [],
             })
             continue
@@ -471,6 +521,7 @@ def build():
             "moonset": ms_iso,
             "moon_phase": phase_val,
             "tide_points": tide_points_out,
+            "weather_points": wx_points,
             "windows": windows_out,
         })
 
@@ -494,5 +545,3 @@ def build():
 
 if __name__ == "__main__":
     build()
-
-

@@ -58,7 +58,7 @@ function shouldIncludeWindow(dayDate, windowStartIso, windowEndIso, daylightStar
 }
 
 function renderDay(day, opts) {
-  const { allowEvening, thresholdFt, palette } = Object.assign({ allowEvening: false, thresholdFt: 2.5, palette: 'intuitive' }, opts || {});
+  const { allowEvening, thresholdFt, palette, showWind, showTemp, showCond } = Object.assign({ allowEvening: false, thresholdFt: 2.5, palette: 'intuitive', showWind: true, showTemp: true, showCond: true }, opts || {});
   const daysEl = document.getElementById('days');
   const card = document.createElement('section');
   card.className = 'day-card';
@@ -107,6 +107,10 @@ function renderDay(day, opts) {
   chartWrap.className = 'chart-wrap';
   const canvas = document.createElement('canvas');
   chartWrap.appendChild(canvas);
+  // Weather lane container (below chart)
+  const lane = document.createElement('div');
+  lane.className = 'weather-lane';
+  chartWrap.appendChild(lane);
 
   const windowsWrap = document.createElement('div');
   windowsWrap.className = 'windows';
@@ -174,6 +178,54 @@ function renderDay(day, opts) {
     ? { min: 0, max: 1440 }
     : { min: daylightMin, max: daylightMax };
   window.renderDayChart(canvas, points, windows, range, { thresholdFt, palette, markers, arcs });
+
+  // Populate weather lane
+  const wx = Array.isArray(day.weather_points) ? day.weather_points : [];
+  if (wx.length === 24) {
+    const toColor = (mph) => {
+      // Encode wind speed: calm=blueish, moderate=yellow, strong=red
+      const v = Math.max(0, Number(mph) || 0);
+      if (v >= 18) return 'rgba(231,76,60,0.9)';      // strong red
+      if (v >= 12) return 'rgba(241,196,15,0.9)';     // yellow
+      if (v >= 6) return 'rgba(62,123,182,0.75)';     // blue
+      return 'rgba(62,123,182,0.35)';                 // pale blue
+    };
+    const condEmoji = (text) => {
+      const t = (text || '').toLowerCase();
+      if (t.includes('rain') || t.includes('showers')) return '🌧️';
+      if (t.includes('storm') || t.includes('thunder')) return '⛈️';
+      if (t.includes('snow')) return '❄️';
+      if (t.includes('fog')) return '🌫️';
+      if (t.includes('cloud')) return '☁️';
+      if (t.includes('sun') || t.includes('clear')) return '☀️';
+      return '·';
+    };
+    wx.forEach((h) => {
+      const block = document.createElement('div');
+      block.className = 'wx-block';
+      const titleBits = [];
+      const dt = new Date(h.time);
+      titleBits.push(dt.toLocaleTimeString([], { hour: '2-digit' }));
+      if (showWind && (h.wind_mph != null)) titleBits.push(`${Math.round(h.wind_mph)} mph${h.wind_gust_mph ? ` (g${Math.round(h.wind_gust_mph)})` : ''}${h.wind_dir ? ` ${h.wind_dir}` : ''}`);
+      if (showTemp && (h.temperature_f != null)) titleBits.push(`${Math.round(h.temperature_f)}°F`);
+      if (showCond && h.condition) titleBits.push(h.condition);
+      block.title = titleBits.join(' · ');
+      if (showWind) block.style.backgroundColor = toColor(h.wind_mph);
+      if (showTemp && (h.temperature_f != null)) {
+        const t = document.createElement('span');
+        t.className = 'temp';
+        t.textContent = `${Math.round(h.temperature_f)}°`;
+        block.appendChild(t);
+      }
+      if (showCond && h.condition) {
+        const c = document.createElement('span');
+        c.className = 'cond';
+        c.textContent = condEmoji(h.condition);
+        block.appendChild(c);
+      }
+      lane.appendChild(block);
+    });
+  }
 }
 
 function clearDays() {
@@ -192,12 +244,18 @@ async function init() {
   const toggleLabel = document.getElementById('evening-toggle-label');
   const paletteToggle = document.getElementById('palette-toggle');
   const paletteToggleLabel = document.getElementById('palette-toggle-label');
+  const windToggle = document.getElementById('wind-toggle');
+  const tempToggle = document.getElementById('temp-toggle');
+  const condToggle = document.getElementById('cond-toggle');
 
   function renderAll() {
     clearDays();
     const thresholdFt = (data.settings && Number.isFinite(data.settings.min_tide_ft)) ? data.settings.min_tide_ft : 2.5;
     const palette = paletteToggle && paletteToggle.checked ? 'viridis' : 'intuitive';
-    (data.days || []).forEach(day => renderDay(day, { allowEvening: toggle.checked, thresholdFt, palette }));
+    const showWind = windToggle ? !!windToggle.checked : true;
+    const showTemp = tempToggle ? !!tempToggle.checked : true;
+    const showCond = condToggle ? !!condToggle.checked : true;
+    (data.days || []).forEach(day => renderDay(day, { allowEvening: toggle.checked, thresholdFt, palette, showWind, showTemp, showCond }));
   }
 
   if (toggle) {
@@ -214,9 +272,11 @@ async function init() {
     });
   }
 
+  if (windToggle) windToggle.addEventListener('change', renderAll);
+  if (tempToggle) tempToggle.addEventListener('change', renderAll);
+  if (condToggle) condToggle.addEventListener('change', renderAll);
+
   renderAll();
 }
 
 init();
-
-
