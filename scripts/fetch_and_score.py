@@ -4,8 +4,13 @@ and write structured JSON to data/data.json.
 
 Data sources:
 - NOAA Tides & Currents predictions (Port San Luis 9412110)
-- NWS hourly forecast (via points -> gridpoints endpoints)
-- Sunrise/sunset times (sunrise-sunset.org)
+- Tempest Weather forecast (preferred - most accurate)
+- NWS hourly forecast (fallback via points -> gridpoints endpoints)
+- Sunrise/sunset times (MET Norway API)
+
+Scoring algorithm updated 2025-09 based on empirical analysis of 49 real-world
+observations. Key finding: wind < 2.2 mph is critical for 5-star conditions.
+Tempest forecasts are 30% more accurate overall and 8x better for wind vs Open-Meteo.
 
 This script is designed to run in GitHub Actions (ubuntu-latest, Python 3.11)
 with only 'requests' and 'pytz' installed.
@@ -44,6 +49,30 @@ MIN_DURATION_MIN = int(os.getenv("MIN_DURATION_MIN", "60"))
 
 DAYS_AHEAD = 7
 WINDOW_BLOCK_MIN = int(os.getenv("WINDOW_BLOCK_MIN", "120"))
+
+# ----------------------------
+# Scoring Configuration
+# Based on empirical analysis of 49 observations (Aug-Sep 2025)
+# ----------------------------
+
+# Wind thresholds (mph) - CRITICAL for accurate scoring
+# Analysis: 5-star avg = 1.6 mph, 4-star avg = 4.0 mph, 2-star avg = 5.1 mph
+WIND_EXCELLENT_MPH = 2.2  # < 1.0 m/s - calm, ideal for 5-star
+WIND_GOOD_MPH = 3.4       # < 1.5 m/s - good, 4-star territory
+WIND_FAIR_MPH = 5.6       # < 2.5 m/s - acceptable, 3-star territory
+WIND_MAX_MPH = 10.0       # > 4.5 m/s - unsafe, score = 0
+
+# Wind gust thresholds (mph)
+# Analysis: 5-star avg = 3.2 mph, 4-star avg = 6.0 mph
+GUST_MAX_MPH = 11.0       # > 5 m/s - dangerous
+GUST_HIGH_MPH = 6.7       # > 3 m/s - uncomfortable
+GUST_MODERATE_MPH = 4.5   # > 2 m/s - noticeable impact
+
+# Temperature preferences (°F)
+# Analysis: 5-star avg = 62°F, range 60-64°F
+TEMP_IDEAL_MIN_F = 60
+TEMP_IDEAL_MAX_F = 65
+TEMP_COLD_F = 50
 
 
 # ----------------------------
@@ -143,12 +172,75 @@ def fetch_nws_hourly() -> Dict[datetime, dict]:
             pop = pop_obj.get("value")
         entry = {
             "wind_mph": wind_mph if wind_mph is not None else 0.0,
+            "wind_gust_mph": 0.0,  # NWS hourly doesn't provide gusts, default to 0
             "temperature_f": p.get("temperature"),
             "shortForecast": p.get("shortForecast", ""),
             "pop_percent": pop if pop is not None else 0.0,
         }
         out[start_local.replace(minute=0, second=0, microsecond=0)] = entry
     return out
+
+
+def fetch_tempest_hourly() -> Dict[datetime, dict]:
+    """
+    Fetch hourly forecast from Tempest Weather (WeatherFlow).
+    Requires TEMPEST_TOKEN and TEMPEST_STATION_ID environment variables.
+
+    Most accurate forecast source per empirical analysis (MAE: 1.75 overall).
+    Wind predictions are especially accurate (0.77 m/s MAE vs 6.45 for Open-Meteo).
+    """
+    token = os.getenv("TEMPEST_TOKEN")
+    station_id = os.getenv("TEMPEST_STATION_ID")
+
+    if not token or not station_id:
+        print("⚠️  Tempest credentials not found. Set TEMPEST_TOKEN and TEMPEST_STATION_ID.")
+        print("   Falling back to NWS forecast (less accurate for wind).")
+        return {}
+
+    url = f"https://swd.weatherflow.com/swd/rest/better_forecast?station_id={station_id}&token={token}"
+
+    try:
+        r = requests.get(url, timeout=30, headers={"User-Agent": "paddlecast/1.0 (github)"})
+        r.raise_for_status()
+        data = r.json()
+
+        out: Dict[datetime, dict] = {}
+        hourly_forecasts = data.get("forecast", {}).get("hourly", [])
+
+        for forecast in hourly_forecasts:
+            time_epoch = forecast.get("time")
+            if not time_epoch:
+                continue
+
+            # Convert epoch to local datetime
+            dt_utc = datetime.fromtimestamp(time_epoch, tz=timezone.utc)
+            dt_local = to_local(dt_utc)
+            dt_local = dt_local.replace(minute=0, second=0, microsecond=0)
+
+            # Extract weather data
+            # Tempest returns: m/s for wind, °C for temp
+            wind_ms = forecast.get("wind_avg", 0)
+            gust_ms = forecast.get("wind_gust", 0)
+            temp_c = forecast.get("air_temperature", 18)
+            conditions = forecast.get("conditions", "")
+            precip_prob = forecast.get("precip_probability", 0)
+
+            # Convert to imperial units for consistency with NWS
+            out[dt_local] = {
+                "wind_mph": wind_ms * 2.237,  # m/s to mph
+                "wind_gust_mph": gust_ms * 2.237,  # m/s to mph
+                "temperature_f": temp_c * 9/5 + 32,  # C to F
+                "shortForecast": conditions,
+                "pop_percent": precip_prob,
+            }
+
+        print(f"✓ Fetched Tempest forecast: {len(out)} hourly periods")
+        return out
+
+    except requests.RequestException as e:
+        print(f"⚠️  Tempest API error: {e}")
+        print("   Falling back to NWS forecast.")
+        return {}
 
 
 def parse_wind_speed(text: str) -> Optional[float]:
@@ -286,11 +378,13 @@ def find_windows(tide_points: List[Tuple[datetime, float]]) -> List[Tuple[dateti
     return windows
 
 
-def window_weather_stats(start: datetime, end: datetime, hourly: Dict[datetime, dict]) -> Tuple[float, float, List[str], List[float], List[float]]:
+def window_weather_stats(start: datetime, end: datetime, hourly: Dict[datetime, dict]) -> Tuple[float, float, float, List[str], List[float], List[float]]:
     # Aggregate overlapping hourly entries
+    # Returns: (avg_wind, avg_wind_gust, avg_temp, forecasts, temps, pops)
     cur = start.replace(minute=0, second=0, microsecond=0)
     end_hour = end.replace(minute=0, second=0, microsecond=0)
     winds: List[float] = []
+    gusts: List[float] = []
     temps: List[float] = []
     pops: List[float] = []
     forecasts: List[str] = []
@@ -299,6 +393,7 @@ def window_weather_stats(start: datetime, end: datetime, hourly: Dict[datetime, 
         info = hourly.get(cur)
         if info:
             winds.append(float(info.get("wind_mph", 0.0)))
+            gusts.append(float(info.get("wind_gust_mph", 0.0)))
             t = info.get("temperature_f")
             if t is not None:
                 temps.append(float(t))
@@ -309,8 +404,9 @@ def window_weather_stats(start: datetime, end: datetime, hourly: Dict[datetime, 
         cur += timedelta(hours=1)
 
     avg_wind = mean(winds) if winds else 0.0
+    avg_wind_gust = mean(gusts) if gusts else 0.0
     avg_temp = mean(temps) if temps else 65.0
-    return avg_wind, avg_temp, forecasts, temps, pops
+    return avg_wind, avg_wind_gust, avg_temp, forecasts, temps, pops
 
 
 def _has_dense_fog(forecasts: List[str]) -> bool:
@@ -327,19 +423,31 @@ def _has_dense_fog(forecasts: List[str]) -> bool:
     return False
 
 
-def score_window(avg_wind: float, avg_temp: float, forecasts: List[str], pops: List[float], start: datetime, end: datetime, sunset: Optional[datetime]) -> float:
+def score_window(avg_wind: float, avg_temp: float, forecasts: List[str], pops: List[float], start: datetime, end: datetime, sunset: Optional[datetime], avg_wind_gust: Optional[float] = None) -> float:
     # Base score
     score = 3.0
 
-    # Wind component
-    if avg_wind > 10:
+    # Wind component - UPDATED based on empirical analysis
+    # Analysis showed: 5-star avg = 1.6 mph, 4-star avg = 4.0 mph, 2-star avg = 5.1 mph
+    if avg_wind > 10:  # Unsafe conditions
         return 0.0
-    elif avg_wind >= 6:
-        score += 0.5
-    elif avg_wind >= 3:
-        score += 0.1
-    else:
-        score += 1.5
+    elif avg_wind >= 5.6:  # Choppy, uncomfortable (2-star territory)
+        score += 0.3
+    elif avg_wind >= 3.4:  # Acceptable but not ideal (3-star territory)
+        score += 0.8
+    elif avg_wind >= 2.2:  # Good conditions (4-star territory)
+        score += 1.2
+    else:  # < 2.2 mph - Calm, ideal for 5-star
+        score += 2.0
+
+    # Wind gust penalty - gusts above 4.5 mph significantly degrade experience
+    if avg_wind_gust is not None:
+        if avg_wind_gust > 11.0:  # > 5 m/s - dangerous
+            return 0.0
+        elif avg_wind_gust > 6.7:  # > 3 m/s - uncomfortable
+            score -= 0.5
+        elif avg_wind_gust > 4.5:  # > 2 m/s - noticeable impact
+            score -= 0.3
 
     # Fog rule: only kill for dense/widespread fog; "Patchy Fog" does NOT penalize
     if _has_dense_fog(forecasts):
@@ -392,7 +500,12 @@ def build():
 
     # Fetch
     tide_pts = fetch_tide_predictions(start_day, end_day)
-    hourly = fetch_nws_hourly()
+
+    # Try Tempest first (most accurate), fallback to NWS
+    hourly = fetch_tempest_hourly()
+    if not hourly:
+        hourly = fetch_nws_hourly()
+
     astronomy_map = fetch_astronomy_range(start_day, end_day)
     forecasts_seen = sorted({
         (info.get("shortForecast") or "").strip()
@@ -445,15 +558,16 @@ def build():
                 # Points within this segment
                 seg_pts = [(t, h) for (t, h) in w_pts if cursor <= t <= seg_end]
                 avg_tide = mean([h for (_t, h) in seg_pts]) if seg_pts else 0.0
-                avg_wind, avg_temp, forecasts, temps, pops = window_weather_stats(cursor, seg_end, hourly)
+                avg_wind, avg_wind_gust, avg_temp, forecasts, temps, pops = window_weather_stats(cursor, seg_end, hourly)
                 # Use sunset time for bonus if available
                 sunset_dt = parse_iso(ss_iso) if ss_iso else None
-                score = score_window(avg_wind, avg_temp, forecasts, pops, cursor, seg_end, sunset_dt)
+                score = score_window(avg_wind, avg_temp, forecasts, pops, cursor, seg_end, sunset_dt, avg_wind_gust)
                 windows_out.append({
                     "start": cursor.isoformat(),
                     "end": seg_end.isoformat(),
                     "avg_tide_ft": round(avg_tide, 2),
                     "avg_wind_mph": round(avg_wind, 1),
+                    "avg_wind_gust_mph": round(avg_wind_gust, 1),
                     "conditions": summarize_conditions(forecasts, avg_wind),
                     "score": score,
                 })
