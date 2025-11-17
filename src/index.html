@@ -16,33 +16,51 @@
         </svg>
         <span class="gh-text">GitHub</span>
       </a>
-      <div class="controls">
-        <label class="toggle">
-          <input type="checkbox" id="evening-toggle" />
-          <span id="evening-toggle-label">Daylight sessions only</span>
-        </label>
-        <label class="toggle" style="margin-left:12px">
-          <input type="checkbox" id="palette-toggle" />
-          <span id="palette-toggle-label">Intuitive colors (red→yellow→green)</span>
-        </label>
-      </div>
     </header>
 
-    <main id="content" class="container">
-      <section id="meta" class="meta"></section>
-      <section id="days" class="days"></section>
-      <section id="error" class="error hidden"></section>
+    <main class="container">
+      <section class="meta">
+        <h2>Kayak windows are getting a tune‑up</h2>
+        <p>
+          The live tide, wind, and weather scoring for Morro Bay is
+          temporarily offline while PaddleCast gets some upgrades.
+        </p>
+        <p>
+          In the next version, you can expect:
+        </p>
+        <ul>
+          <li>Smart scoring for tide height, wind, and conditions</li>
+          <li>Color‑coded charts for quick “go / maybe / nope” reads</li>
+          <li>Daylight vs. evening filters for easier planning</li>
+          <li>At‑a‑glance daily cards with star ratings</li>
+        </ul>
+      </section>
+
+      <section class="days">
+        <h3>While you wait</h3>
+        <p>
+          You can still:
+        </p>
+        <ul>
+          <li>
+            Follow development or file issues on
+            <a href="https://github.com/kylenessen/PaddleCast" target="_blank" rel="noopener">GitHub</a>.
+          </li>
+          <li>
+            Check official forecasts from NOAA and the National Weather Service
+            before heading out.
+          </li>
+        </ul>
+        <p>
+          Thanks for your patience — the next version of PaddleCast is on the way.
+        </p>
+      </section>
     </main>
 
     <footer class="site-footer">
-      <p>Data: NOAA Tides & Currents, NWS Weather. Updated periodically.</p>
-      <p><a href="./data/data.json" style="color: var(--accent)">View raw data.json</a></p>
+      <p>Data sources for the full app: NOAA Tides &amp; Currents and NWS hourly forecasts.</p>
+      <p>This is a temporary placeholder page while the service is being rebuilt.</p>
     </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-    <script src="./charts.js"></script>
-    <script src="./app.js"></script>
   </body>
   </html>
-
 
