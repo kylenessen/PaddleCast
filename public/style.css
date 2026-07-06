@@ -225,19 +225,6 @@ body {
 
 .metric-seg-value { overflow: hidden; text-overflow: ellipsis; }
 
-.tooltip {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  background: var(--ink);
-  color: #fff;
-  font-size: 12px;
-  padding: 5px 9px;
-  border-radius: 6px;
-  pointer-events: none;
-  white-space: nowrap;
-  z-index: 50;
-}
-
 /* ---- week table (home) ----
    Days across, locations down, each cell a clickable hour-stripe
    timeline. Scanning a column answers "where can I paddle that day". */

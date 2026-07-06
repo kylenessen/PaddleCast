@@ -28,7 +28,7 @@ Hour colors come from a four-anchor ramp, one anchor per category, blending line
 
 ## Data sources
 
-- Wind, weather, and waves: [Open-Meteo](https://open-meteo.com) forecast and marine APIs. Free, no API key. Waves are model data for each location's own coordinates, not a buoy reading, using total significant wave height with the swell and wind-wave split shown in the tooltip.
+- Wind, weather, and waves: [Open-Meteo](https://open-meteo.com) forecast and marine APIs. Free, no API key. Waves are model data for each location's own coordinates, not a buoy reading, using total significant wave height.
 - Tides: [NOAA Tides & Currents](https://tidesandcurrents.noaa.gov) predictions (MLLW). The station ID is a per-location preference, so different spots can reference different stations.
 - Sun times are computed locally using the NOAA solar equations.
 

@@ -37,32 +37,6 @@ function fmtClock(iso) {
   return `${((h + 11) % 12) + 1}:${m}${ampm}`;
 }
 
-// ---- shared tooltip ----
-
-let tooltip;
-function ensureTooltip() {
-  if (!tooltip) {
-    tooltip = el("div", "tooltip");
-    tooltip.hidden = true;
-    document.body.appendChild(tooltip);
-  }
-  return tooltip;
-}
-
-export function attachTooltip(node, textFn) {
-  node.addEventListener("mouseenter", () => {
-    const tip = ensureTooltip();
-    tip.textContent = textFn();
-    tip.hidden = false;
-    const rect = node.getBoundingClientRect();
-    tip.style.left = `${rect.left + rect.width / 2 + window.scrollX}px`;
-    tip.style.top = `${rect.top + window.scrollY - 8}px`;
-  });
-  node.addEventListener("mouseleave", () => {
-    if (tooltip) tooltip.hidden = true;
-  });
-}
-
 // ---- hourly day view ----
 
 export function renderDayView(forecast, dayIndex, { onPickDay }) {
@@ -132,10 +106,6 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
       dot.style.background = categoryColor(metric.category, scheme);
       seg.appendChild(dot);
       seg.appendChild(el("span", "metric-seg-value", metric.value));
-      attachTooltip(seg, () =>
-        `${meta.label}: ${metric.value}` +
-        (metric.detail ? ` — ${metric.detail}` : "")
-      );
       bar.appendChild(seg);
     }
     row.appendChild(bar);
@@ -224,13 +194,6 @@ export function renderWeekTable(entries) {
       const cell = el("a", "wt-cell");
       cell.href = `#/loc/${location.id}?day=${date}`;
       cell.appendChild(dayColorBar(day, scheme));
-      const counts = { excellent: 0, acceptable: 0, marginal: 0, notForMe: 0 };
-      for (const h of day.hours) counts[h.overall]++;
-      attachTooltip(cell, () =>
-        `${location.name} ${weekdayOf(date)}: ` +
-        `${counts.excellent} excellent · ${counts.acceptable} acceptable · ` +
-        `${counts.marginal} marginal · ${counts.notForMe} not-for-me hours`
-      );
       td.appendChild(cell);
       tr.appendChild(td);
     }
