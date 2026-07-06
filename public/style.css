@@ -156,9 +156,10 @@ body {
 }
 
 /* Hour table: hours down, one column per metric, in the same panel
-   dress as the home week table. Cells are filled with their category
-   color so a column reads as that attribute's arc over the day; the
-   time column carries the hour's overall ramp color. */
+   dress as the home week table. Color stays quiet: cells get a light
+   wash of their category color under plain ink, and the only
+   full-strength color is the thin edge on the time cell showing the
+   hour's overall ramp position. */
 .day-table {
   width: 100%;
   border-collapse: separate;
@@ -179,6 +180,8 @@ body {
   font-size: 13px;
   border-radius: 6px;
   padding: 6px 4px;
+  background: color-mix(in srgb, var(--overall, var(--line)) 18%, #fff);
+  border-left: 4px solid var(--overall, var(--line));
 }
 
 .dt-cell {
@@ -189,6 +192,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  background: color-mix(in srgb, var(--cat, var(--panel)) 14%, #fff);
 }
 
 @media (max-width: 720px) {

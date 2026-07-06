@@ -1,4 +1,4 @@
-import { categoryColor, rampColor, textColorOn } from "../core/colors.js";
+import { categoryColor, rampColor } from "../core/colors.js";
 import { getSettings } from "../storage.js";
 
 const METRIC_META = {
@@ -87,9 +87,9 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
 
   // Hour table, same shape as the home page's week table: hours down,
   // one column per metric, so a single column reads as that attribute's
-  // arc over the day. The time cell wears the hour's overall ramp color
-  // (the same color as its stripe in the home timeline) and each metric
-  // cell is filled with its category's anchor color.
+  // arc over the day. Cells only carry their color as a CSS variable;
+  // style.css tints from it so how loud the color reads is a style
+  // decision, not a markup one.
   const keys = Object.keys(METRIC_META).filter((k) =>
     day.hours.some((h) => h.metrics[k])
   );
@@ -112,18 +112,14 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
   for (const hour of day.hours) {
     const tr = el("tr");
     const timeCell = el("th", "dt-time", fmtHour(hour.time));
-    const overall = rampColor(hour.score, scheme);
-    timeCell.style.background = overall;
-    timeCell.style.color = textColorOn(overall);
+    timeCell.style.setProperty("--overall", rampColor(hour.score, scheme));
     tr.appendChild(timeCell);
 
     for (const key of keys) {
       const td = el("td", "dt-cell");
       const metric = hour.metrics[key];
       if (metric) {
-        const bg = categoryColor(metric.category, scheme);
-        td.style.background = bg;
-        td.style.color = textColorOn(bg);
+        td.style.setProperty("--cat", categoryColor(metric.category, scheme));
         td.textContent = metric.value;
       }
       tr.appendChild(td);
