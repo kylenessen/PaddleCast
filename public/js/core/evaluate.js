@@ -50,8 +50,9 @@ function evalWind(hour, prefs) {
   else category = "notForMe";
   return {
     category,
-    value: `${Math.round(hour.windMph)} mph ${SECTOR_NAMES[sector]}`,
-    detail: `Beaufort ${b.level} (${b.name})` +
+    value: `${Math.round(hour.windMph)} mph`,
+    dirDeg: hour.windDirDeg,
+    detail: `Beaufort ${b.level} (${b.name}), from ${SECTOR_NAMES[sector]}` +
       (isProtected && b.level > prefs.wind.marginalMax
         ? ", allowed by protected direction"
         : ""),
@@ -127,8 +128,9 @@ function evalWaves(hour, prefs) {
     category,
     value: `${hour.waveFt.toFixed(1)} ft @ ${
       hour.wavePeriodS != null ? Math.round(hour.wavePeriodS) : "?"
-    }s ${SECTOR_NAMES[sector]}`,
-    detail: details.join(", "),
+    }s`,
+    dirDeg: hour.waveDirDeg,
+    detail: [`from ${SECTOR_NAMES[sector]}`, ...details].join(", "),
   };
 }
 

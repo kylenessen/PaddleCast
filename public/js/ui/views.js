@@ -87,9 +87,11 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
 
   // Hour table, same shape as the home page's week table: hours down,
   // one column per metric, so a single column reads as that attribute's
-  // arc over the day. Cells only carry their color as a CSS variable;
-  // style.css tints from it so how loud the color reads is a style
-  // decision, not a markup one.
+  // arc over the day. Color stays small: each cell leads with the
+  // metric's emoji in a category-colored dot (the same chip the old
+  // hour list used) and the value sits beside it in plain ink. Wind
+  // and wave directions render as an arrow rotated to point where the
+  // water or air is going, not compass letters.
   const keys = Object.keys(METRIC_META).filter((k) =>
     day.hours.some((h) => h.metrics[k])
   );
@@ -101,7 +103,6 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
   for (const key of keys) {
     const meta = METRIC_META[key];
     const th = el("th", "dt-metric");
-    th.appendChild(el("span", "dt-metric-icon", meta.icon));
     th.appendChild(el("span", "dt-metric-label", meta.label));
     headRow.appendChild(th);
   }
@@ -119,8 +120,21 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
       const td = el("td", "dt-cell");
       const metric = hour.metrics[key];
       if (metric) {
-        td.style.setProperty("--cat", categoryColor(metric.category, scheme));
-        td.textContent = metric.value;
+        const wrap = el("span", "dt-cell-wrap");
+        const dot = el("span", "dt-dot", METRIC_META[key].icon);
+        dot.style.background = categoryColor(metric.category, scheme);
+        wrap.appendChild(dot);
+        // The arrow sits between dot and value so it reads as part of
+        // this metric, not the next column's. Direction degrees are
+        // "coming from"; the arrow shows the flow, so it points the
+        // opposite way.
+        if (metric.dirDeg != null) {
+          const arrow = el("span", "dt-arrow", "↑");
+          arrow.style.rotate = `${Math.round(metric.dirDeg + 180) % 360}deg`;
+          wrap.appendChild(arrow);
+        }
+        wrap.appendChild(el("span", "dt-value", metric.value));
+        td.appendChild(wrap);
       }
       tr.appendChild(td);
     }
