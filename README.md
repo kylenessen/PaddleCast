@@ -8,11 +8,13 @@ Kayak condition forecasts for the places you paddle, judged by your own threshol
 
 The site is a static single page app with no build step. When you load it, the browser fetches fresh forecasts directly from the data sources, so there is no scheduled pipeline and nothing goes stale. There are no accounts and no server-side state.
 
-A default set of locations ships with the site in [public/js/locations.js](public/js/locations.js), so visitors see working forecasts with zero setup. Edit that file to change what everyone gets. Any changes a visitor makes in the browser (tweaked preferences, renamed or deleted defaults, their own added spots) live in localStorage on their device, persist across visits, and shadow the shipped defaults without touching them.
+The default filter thresholds and the default locations everyone sees ship in [public/config.json](public/config.json), a plain JSON file that diffs cleanly. Edit it by hand or with the form-based editor at [/edit.html](public/edit.html), which loads the live config and hands back the updated JSON to download or copy. Replace the file, commit to main, and the Cloudflare Pages deploy updates the site. Any changes a visitor makes in the browser (tweaked preferences, renamed or deleted defaults, their own added spots) live in localStorage on their device, persist across visits, and shadow the shipped defaults without touching them.
 
 Day links carry the location id and calendar date, like `paddlecast.org/#/loc/baywood?day=2026-07-10`, so you can send someone a specific day at a specific spot and they open exactly what you see.
 
-You add a location by dropping a point on a map and naming it. Each location gets its own preferences. Wind tolerance is set as a maximum Beaufort level, temperature as a range with a sweet spot, sky conditions as per-category ratings, tide as a minimum height against a NOAA station you specify, and swell as a size range with a minimum period. Wind and swell each have a compass wheel where you mark terrain-protected directions, which raises the tolerated maximum when conditions arrive from those headings.
+You add a location by dropping a point on a map and naming it. Each location gets its own preferences. Wind tolerance is set as a maximum Beaufort level, temperature as a range with a sweet spot, sky conditions as per-category ratings, tide as a minimum height against a NOAA station you specify, and waves as a size range with a minimum period. The wave metric is total significant wave height, swell and wind waves combined, since a small swell with heavy wind chop on top paddles like a big one. Wind and waves each have a compass wheel where you mark terrain-protected directions, which raises the tolerated maximum when conditions arrive from those headings.
+
+The shipped defaults come from the [observation study](analysis/observations/REPORT.md): wind is good through Beaufort 1 and tolerable through Beaufort 3, waves are good under 2 ft and tolerable under 4 ft of combined height.
 
 Forecasts cover daylight hours only, from civil first light through last light, so sunrise and sunset paddles are visible without nighttime clutter. Each hour shows a colored dot per metric, and the whole hour takes the color of its worst metric. Each hour also gets a continuous score, the mean ramp position of its metrics, so an hour with two good readings and one marginal shades proportionally between green and yellow. The home page stacks a week view for every saved location, with each day rendered as a smooth gradient of those hourly shades. Click a day to drill into the hourly detail.
 
@@ -20,7 +22,7 @@ Colors default to green-to-red, with a blue-to-red colorblind-friendly scheme in
 
 ## Data sources
 
-- Wind, weather, and swell: [Open-Meteo](https://open-meteo.com) forecast and marine APIs. Free, no API key. Swell is model data for each location's own coordinates, not a buoy reading.
+- Wind, weather, and waves: [Open-Meteo](https://open-meteo.com) forecast and marine APIs. Free, no API key. Waves are model data for each location's own coordinates, not a buoy reading, using total significant wave height with the swell and wind-wave split shown in the tooltip.
 - Tides: [NOAA Tides & Currents](https://tidesandcurrents.noaa.gov) predictions (MLLW). The station ID is a per-location preference, so different spots can reference different stations.
 - Sun times are computed locally using the NOAA solar equations.
 
@@ -34,7 +36,7 @@ POST /api/forecast
   "prefs": { "tide": { "enabled": true, "stationId": "9412110", "minFt": 2.5 } } }
 ```
 
-A GET form covers the common fields: `/api/forecast?lat=35.34&lon=-120.83&station=9412110&minTide=2.5&swell=1`. The `prefs` object accepts everything the website stores, see [prefs.js](public/js/core/prefs.js) for the schema and defaults. The response contains each daylight hour's raw values plus its evaluation against the supplied preferences.
+A GET form covers the common fields: `/api/forecast?lat=35.34&lon=-120.83&station=9412110&minTide=2.5&waves=1` (`swell=1` still works). The `prefs` object accepts everything the website stores, see [prefs.js](public/js/core/prefs.js) for the schema and [config.json](public/config.json) for the shipped defaults. The response contains each daylight hour's raw values plus its evaluation against the supplied preferences.
 
 ## Development
 
@@ -56,6 +58,7 @@ Deployed on Cloudflare Pages. Connect the repo in the Cloudflare dashboard with 
 
 ## Project structure
 
-- `public/js/locations.js` — the default locations everyone sees. Edit here.
+- `public/config.json` — the default filters and locations everyone sees. Edit here (or via `/edit.html`).
+- `public/edit.html` + `public/js/edit.js` — the form-based config editor.
 - `public/` — the site. `js/core/` holds forecast logic shared with the API, `js/providers/` the data source clients, `js/ui/` the views.
-- `functions/api/forecast.js` — the JSON endpoint.
+- `functions/api/forecast.js` — the JSON endpoint, evaluated with the same config.json defaults.
