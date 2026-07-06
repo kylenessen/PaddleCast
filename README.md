@@ -20,8 +20,7 @@ Colors default to green-to-red, with a blue-to-red colorblind-friendly scheme in
 
 ## Data sources
 
-- Wind: [WeatherFlow Tempest](https://tempestwx.com) better_forecast when a `TEMPEST_TOKEN` secret is configured, proxied through `/api/wind` so the token never reaches the browser. Falls back to Open-Meteo wind otherwise. The day view shows "Wind: Tempest" when it is active.
-- Weather and swell: [Open-Meteo](https://open-meteo.com) forecast and marine APIs. Free, no API key. Swell is model data for each location's own coordinates, not a buoy reading.
+- Wind, weather, and swell: [Open-Meteo](https://open-meteo.com) forecast and marine APIs. Free, no API key. Swell is model data for each location's own coordinates, not a buoy reading.
 - Tides: [NOAA Tides & Currents](https://tidesandcurrents.noaa.gov) predictions (MLLW). The station ID is a per-location preference, so different spots can reference different stations.
 - Sun times are computed locally using the NOAA solar equations.
 
@@ -45,20 +44,18 @@ There is no build step. For the static site alone, any file server works:
 python3 -m http.server -d public 8788
 ```
 
-To run with the API functions, use Wrangler. For Tempest wind locally, put the token in a `.dev.vars` file (gitignored), which Wrangler reads automatically:
+To run with the API functions, use Wrangler:
 
 ```
-echo "TEMPEST_TOKEN=your-token" > .dev.vars
 npx wrangler pages dev public
 ```
 
 ## Deployment
 
-Deployed on Cloudflare Pages. Connect the repo in the Cloudflare dashboard with no build command and `public` as the output directory (also declared in `wrangler.toml`). The `functions/` directory is picked up automatically. Add `TEMPEST_TOKEN` as an environment secret in the Pages project settings to enable Tempest wind.
+Deployed on Cloudflare Pages. Connect the repo in the Cloudflare dashboard with no build command and `public` as the output directory (also declared in `wrangler.toml`). The `functions/` directory is picked up automatically.
 
 ## Project structure
 
 - `public/js/locations.js` — the default locations everyone sees. Edit here.
 - `public/` — the site. `js/core/` holds forecast logic shared with the API, `js/providers/` the data source clients, `js/ui/` the views.
 - `functions/api/forecast.js` — the JSON endpoint.
-- `functions/api/wind.js` — the Tempest wind proxy that holds the token.

@@ -84,8 +84,7 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
       `First light ${fmtClock(day.sun.firstLight)} · ` +
         `Sunrise ${fmtClock(day.sun.sunrise)} · ` +
         `Sunset ${fmtClock(day.sun.sunset)} · ` +
-        `Last light ${fmtClock(day.sun.lastLight)}` +
-        (forecast.windSource === "tempest" ? " · Wind: Tempest" : "")
+        `Last light ${fmtClock(day.sun.lastLight)}`
     )
   );
   root.appendChild(header);
