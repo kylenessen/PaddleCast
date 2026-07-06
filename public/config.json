@@ -1,7 +1,17 @@
 {
   "colors": {
-    "green-red": ["#15803D", "#8AC926", "#FFCA3A", "#C0392B"],
-    "blue-red": ["#1982C4", "#74B9E0", "#FFCA3A", "#C0392B"]
+    "green-red": [
+      "#15803D",
+      "#8AC926",
+      "#FFCA3A",
+      "#C0392B"
+    ],
+    "blue-red": [
+      "#1982C4",
+      "#74B9E0",
+      "#FFCA3A",
+      "#C0392B"
+    ]
   },
   "defaults": {
     "wind": {

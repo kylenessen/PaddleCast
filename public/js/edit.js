@@ -8,6 +8,8 @@
 // deployed site there is nothing to write to, and Save reports that.
 
 import { buildPrefsForm, field, numberInput } from "./ui/prefsform.js";
+import { SCHEMES } from "./core/colors.js";
+import { CATEGORY_LABELS } from "./core/evaluate.js";
 
 const editor = document.getElementById("editor");
 
@@ -38,6 +40,7 @@ const SHAPE = {
 let config;
 let map;
 let defaultsForm;
+const colorInputs = {}; // scheme id -> [input x4], anchor order
 const handles = []; // { loc, marker, coordsEl, prefsForm, card, title }
 
 function el(tag, className, text) {
@@ -121,6 +124,35 @@ function renderDefaults() {
   defaultsForm = buildPrefsForm(config.defaults);
   details.appendChild(defaultsForm.element);
   return details;
+}
+
+// ---- hour colors ----
+
+// The four ramp anchors per scheme (excellent, acceptable, marginal,
+// notForMe). Values live in config.json's "colors" key; the built-in
+// scheme anchors fill in when the key is absent.
+function renderColors() {
+  const holder = section(
+    "Hour colors",
+    "Four anchor colors per scheme, one per category. An hour's color blends between adjacent anchors by its score, so these set the whole ramp."
+  );
+  const categoryNames = Object.values(CATEGORY_LABELS);
+  for (const [id, scheme] of Object.entries(SCHEMES)) {
+    const stored = config.colors?.[id];
+    const anchors =
+      Array.isArray(stored) && stored.length === 4 ? stored : scheme.anchors;
+    holder.appendChild(el("h4", "color-scheme-title", scheme.label));
+    const row = el("div", "field-row");
+    colorInputs[id] = anchors.map((hex, i) => {
+      const input = el("input");
+      input.type = "color";
+      input.value = hex;
+      row.appendChild(field(categoryNames[i], input));
+      return input;
+    });
+    holder.appendChild(row);
+  }
+  return holder;
 }
 
 // ---- locations ----
@@ -269,6 +301,12 @@ function renderSaveBar() {
 // Reads every form into `config`, returning an error string or null.
 function validateAndCollect() {
   config.defaults = defaultsForm.read();
+  config.colors = Object.fromEntries(
+    Object.entries(colorInputs).map(([id, inputs]) => [
+      id,
+      inputs.map((input) => input.value.toUpperCase()),
+    ])
+  );
   const locations = [];
   const seen = new Set();
   for (const h of handles) {
@@ -307,6 +345,7 @@ async function boot() {
   const mapDiv = el("div", "edit-map");
   editor.appendChild(mapDiv);
   editor.appendChild(renderDefaults());
+  editor.appendChild(renderColors());
   const { holder, listEl } = renderLocations();
   editor.appendChild(holder);
   document.body.appendChild(renderSaveBar());
