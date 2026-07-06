@@ -9,6 +9,7 @@
 
 import { BEAUFORT } from "../core/beaufort.js";
 import { CONDITION_CATEGORIES } from "../core/wmo.js";
+import { CATEGORY_LABELS } from "../core/evaluate.js";
 import { directionWheel } from "./wheel.js";
 
 function el(tag, className, text) {
@@ -46,13 +47,9 @@ function beaufortSelect(value) {
   return select;
 }
 
-function toleranceSelect(value) {
+function categorySelect(value) {
   const select = el("select");
-  for (const [v, label] of [
-    ["good", "Good"],
-    ["marginal", "Tolerable"],
-    ["bad", "Not for me"],
-  ]) {
+  for (const [v, label] of Object.entries(CATEGORY_LABELS)) {
     const opt = el("option", null, label);
     opt.value = v;
     if (v === value) opt.selected = true;
@@ -75,35 +72,44 @@ export function buildPrefsForm(prefs) {
   // Wind
   const wind = section(
     "Wind",
-    "Beaufort levels at or below the good level show as good, up to your max as marginal, above as red. Mark terrain-protected directions on the wheel to allow a higher max from those headings."
+    "Beaufort ceilings for each tier: at or below excellent is excellent, then acceptable, then marginal, above marginal is not for me. Mark terrain-protected directions on the wheel to allow a higher marginal ceiling from those headings."
   );
-  const windGood = beaufortSelect(prefs.wind.goodMax);
-  const windMax = beaufortSelect(prefs.wind.max);
+  const windExcellent = beaufortSelect(prefs.wind.excellentMax);
+  const windAcceptable = beaufortSelect(prefs.wind.acceptableMax);
+  const windMarginal = beaufortSelect(prefs.wind.marginalMax);
   const windProtMax = beaufortSelect(prefs.wind.protectedMax);
   const windRow = el("div", "field-row");
-  windRow.appendChild(field("Good up to", windGood));
-  windRow.appendChild(field("Max tolerated", windMax));
+  windRow.appendChild(field("Excellent up to", windExcellent));
+  windRow.appendChild(field("Acceptable up to", windAcceptable));
+  windRow.appendChild(field("Marginal up to", windMarginal));
   wind.appendChild(windRow);
   const windWheel = directionWheel(prefs.wind.protectedSectors);
   wind.appendChild(windWheel);
-  wind.appendChild(field("Max from protected directions", windProtMax));
+  wind.appendChild(field("Marginal up to, from protected directions", windProtMax));
   frag.appendChild(wind);
 
   // Temperature
   const temp = section(
     "Temperature (°F)",
-    "Min and max are the red boundaries. The sweet spot range shows as good, in between as marginal."
+    "Three nested ranges: a tight excellent range inside a wider acceptable range inside the marginal range. Outside marginal is not for me."
   );
-  const tMin = numberInput(prefs.temp.min);
-  const tSweetMin = numberInput(prefs.temp.sweetMin);
-  const tSweetMax = numberInput(prefs.temp.sweetMax);
-  const tMax = numberInput(prefs.temp.max);
-  const tempRow = el("div", "field-row");
-  tempRow.appendChild(field("Min", tMin));
-  tempRow.appendChild(field("Sweet spot low", tSweetMin));
-  tempRow.appendChild(field("Sweet spot high", tSweetMax));
-  tempRow.appendChild(field("Max", tMax));
-  temp.appendChild(tempRow);
+  const tExcMin = numberInput(prefs.temp.excellentMin);
+  const tExcMax = numberInput(prefs.temp.excellentMax);
+  const tAccMin = numberInput(prefs.temp.acceptableMin);
+  const tAccMax = numberInput(prefs.temp.acceptableMax);
+  const tMarMin = numberInput(prefs.temp.marginalMin);
+  const tMarMax = numberInput(prefs.temp.marginalMax);
+  const tempRows = [
+    ["Excellent", tExcMin, tExcMax],
+    ["Acceptable", tAccMin, tAccMax],
+    ["Marginal", tMarMin, tMarMax],
+  ];
+  for (const [label, minInput, maxInput] of tempRows) {
+    const row = el("div", "field-row");
+    row.appendChild(field(`${label} low`, minInput));
+    row.appendChild(field(`${label} high`, maxInput));
+    temp.appendChild(row);
+  }
   frag.appendChild(temp);
 
   // Conditions
@@ -111,7 +117,7 @@ export function buildPrefsForm(prefs) {
   const condSelects = {};
   const condGrid = el("div", "cond-grid");
   for (const cat of CONDITION_CATEGORIES) {
-    const select = toleranceSelect(prefs.conditions[cat.id] ?? "marginal");
+    const select = categorySelect(prefs.conditions[cat.id] ?? "marginal");
     condSelects[cat.id] = select;
     condGrid.appendChild(field(cat.label, select));
   }
@@ -143,39 +149,44 @@ export function buildPrefsForm(prefs) {
   // Waves
   const waves = section(
     "Waves",
-    "For open-coast launches. Total wave height, swell and wind waves combined. Same idea as wind: protected directions allow bigger waves."
+    "For open-coast launches. Total wave height, swell and wind waves combined, with nested ceilings like wind. The minimum period only applies to the excellent tier. Protected directions allow bigger waves."
   );
   const wavesEnabled = el("input");
   wavesEnabled.type = "checkbox";
   wavesEnabled.checked = prefs.waves.enabled;
-  const wavesGood = numberInput(prefs.waves.goodMaxFt, { step: 0.5 });
-  const wavesMax = numberInput(prefs.waves.maxFt, { step: 0.5 });
+  const wavesExcellent = numberInput(prefs.waves.excellentMaxFt, { step: 0.5 });
+  const wavesAcceptable = numberInput(prefs.waves.acceptableMaxFt, { step: 0.5 });
+  const wavesMarginal = numberInput(prefs.waves.marginalMaxFt, { step: 0.5 });
   const wavesPeriod = numberInput(prefs.waves.minPeriodS, { step: 1 });
   const wavesProtMax = numberInput(prefs.waves.protectedMaxFt, { step: 0.5 });
   waves.appendChild(field("Track waves at this location", wavesEnabled));
   const wavesRow = el("div", "field-row");
-  wavesRow.appendChild(field("Good up to (ft)", wavesGood));
-  wavesRow.appendChild(field("Max tolerated (ft)", wavesMax));
-  wavesRow.appendChild(field("Min period (s)", wavesPeriod));
+  wavesRow.appendChild(field("Excellent up to (ft)", wavesExcellent));
+  wavesRow.appendChild(field("Acceptable up to (ft)", wavesAcceptable));
+  wavesRow.appendChild(field("Marginal up to (ft)", wavesMarginal));
+  wavesRow.appendChild(field("Min period for excellent (s)", wavesPeriod));
   waves.appendChild(wavesRow);
   const wavesWheel = directionWheel(prefs.waves.protectedSectors);
   waves.appendChild(wavesWheel);
-  waves.appendChild(field("Max from protected directions (ft)", wavesProtMax));
+  waves.appendChild(field("Marginal up to, from protected directions (ft)", wavesProtMax));
   frag.appendChild(waves);
 
   function read() {
     return {
       wind: {
-        goodMax: Number(windGood.value),
-        max: Number(windMax.value),
+        excellentMax: Number(windExcellent.value),
+        acceptableMax: Number(windAcceptable.value),
+        marginalMax: Number(windMarginal.value),
         protectedSectors: windWheel.getSelected(),
         protectedMax: Number(windProtMax.value),
       },
       temp: {
-        min: Number(tMin.value),
-        max: Number(tMax.value),
-        sweetMin: Number(tSweetMin.value),
-        sweetMax: Number(tSweetMax.value),
+        excellentMin: Number(tExcMin.value),
+        excellentMax: Number(tExcMax.value),
+        acceptableMin: Number(tAccMin.value),
+        acceptableMax: Number(tAccMax.value),
+        marginalMin: Number(tMarMin.value),
+        marginalMax: Number(tMarMax.value),
       },
       conditions: Object.fromEntries(
         Object.entries(condSelects).map(([id, s]) => [id, s.value])
@@ -188,8 +199,9 @@ export function buildPrefsForm(prefs) {
       },
       waves: {
         enabled: wavesEnabled.checked,
-        goodMaxFt: Number(wavesGood.value),
-        maxFt: Number(wavesMax.value),
+        excellentMaxFt: Number(wavesExcellent.value),
+        acceptableMaxFt: Number(wavesAcceptable.value),
+        marginalMaxFt: Number(wavesMarginal.value),
         minPeriodS: Number(wavesPeriod.value),
         protectedSectors: wavesWheel.getSelected(),
         protectedMaxFt: Number(wavesProtMax.value),

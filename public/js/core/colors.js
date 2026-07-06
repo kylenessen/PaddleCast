@@ -16,9 +16,19 @@ export const SCHEMES = {
   },
 };
 
+// Interim mapping of the four categories onto the three scheme colors,
+// until the four-anchor ramp lands (see the scoring issue).
+const CATEGORY_TO_STATUS = {
+  excellent: "good",
+  acceptable: "good",
+  marginal: "marginal",
+  notForMe: "bad",
+};
+
 export function statusColor(status, schemeId) {
   const scheme = SCHEMES[schemeId] ?? SCHEMES["green-red"];
-  return scheme[status] ?? scheme.marginal;
+  const key = CATEGORY_TO_STATUS[status] ?? status;
+  return scheme[key] ?? scheme.marginal;
 }
 
 function hexToRgb(hex) {

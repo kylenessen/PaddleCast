@@ -5,6 +5,12 @@
 // terrain shielding: when wind or waves arrive from a protected
 // sector, the tolerated upper limit is extended.
 //
+// Every metric rates into four categories: excellent, acceptable,
+// marginal, notForMe. Wind, temperature, and waves use nested
+// thresholds (excellent inside acceptable inside marginal); sky
+// conditions map each weather type to a category directly; tide is a
+// gate with a marginal buffer above the minimum.
+//
 // The values below are the built-in schema fallback. The shipped
 // defaults everyone sees live in config.json at the site root and are
 // overlaid on top (see config.js). Edit config.json, not this file, to
@@ -24,33 +30,35 @@ export function sectorFromDegrees(deg) {
 function builtinPrefs() {
   return {
     wind: {
-      // Beaufort level boundaries: <= good is blue/green,
-      // <= max is yellow, above max is red. Grounded in the
+      // Beaufort level ceilings for each tier. Grounded in the
       // observation study: force 0-1 rated good, force 2 a coin flip,
       // force 3 in forecast terms is the tolerance ceiling.
-      goodMax: 1,
-      max: 3,
-      // Sectors treated as terrain-protected, and the extended limit
-      // that applies when wind comes from one of them.
+      excellentMax: 1,
+      acceptableMax: 2,
+      marginalMax: 3,
+      // Sectors treated as terrain-protected, and the extended
+      // marginal ceiling that applies when wind comes from one.
       protectedSectors: [],
       protectedMax: 4,
     },
     temp: {
-      // Degrees F. min/max are the red boundaries, sweet spot is blue.
-      min: 55,
-      max: 85,
-      sweetMin: 62,
-      sweetMax: 78,
+      // Degrees F, three nested ranges. Outside marginal is notForMe.
+      excellentMin: 65,
+      excellentMax: 75,
+      acceptableMin: 60,
+      acceptableMax: 80,
+      marginalMin: 55,
+      marginalMax: 85,
     },
-    // Condition category id -> "good" | "marginal" | "bad".
+    // Condition category id -> excellent | acceptable | marginal | notForMe.
     conditions: {
-      sunny: "good",
-      partly: "good",
+      sunny: "excellent",
+      partly: "acceptable",
       overcast: "marginal",
       fog: "marginal",
-      drizzle: "bad",
-      rain: "bad",
-      storm: "bad",
+      drizzle: "notForMe",
+      rain: "notForMe",
+      storm: "notForMe",
     },
     tide: {
       enabled: false,
@@ -61,9 +69,11 @@ function builtinPrefs() {
     },
     waves: {
       // Total significant wave height, swell and wind waves combined.
+      // The minimum period gates the excellent tier only.
       enabled: false,
-      goodMaxFt: 2,
-      maxFt: 4,
+      excellentMaxFt: 2,
+      acceptableMaxFt: 3,
+      marginalMaxFt: 4,
       minPeriodS: 8,
       protectedSectors: [],
       protectedMaxFt: 6,
@@ -87,15 +97,73 @@ export function defaultPrefs() {
   return overlay(builtinPrefs(), getConfigDefaults());
 }
 
+const OLD_CONDITION_VALUES = {
+  good: "acceptable",
+  marginal: "marginal",
+  bad: "notForMe",
+};
+
+// Saves from the three-status era (good/marginal/bad) carry old keys.
+// Map them onto the four-category schema: the old good ceiling becomes
+// the excellent ceiling, the old max becomes the marginal ceiling, and
+// the acceptable tier lands between them.
+function migrateStored(stored) {
+  const out = { ...stored };
+  // Older saves called the marine section "swell"; it is now "waves"
+  // (total wave height). Carry the values across.
+  if (out.swell && !out.waves) out.waves = out.swell;
+  if (out.wind && out.wind.excellentMax == null && out.wind.goodMax != null) {
+    const w = out.wind;
+    out.wind = {
+      excellentMax: w.goodMax,
+      acceptableMax: Math.min(w.max, w.goodMax + 1),
+      marginalMax: w.max,
+      protectedSectors: w.protectedSectors ?? [],
+      protectedMax: w.protectedMax ?? w.max + 1,
+    };
+  }
+  if (out.temp && out.temp.excellentMin == null && out.temp.sweetMin != null) {
+    const t = out.temp;
+    out.temp = {
+      excellentMin: t.sweetMin,
+      excellentMax: t.sweetMax,
+      acceptableMin: Math.round((t.min + t.sweetMin) / 2),
+      acceptableMax: Math.round((t.max + t.sweetMax) / 2),
+      marginalMin: t.min,
+      marginalMax: t.max,
+    };
+  }
+  if (out.conditions) {
+    out.conditions = Object.fromEntries(
+      Object.entries(out.conditions).map(([k, v]) => [
+        k,
+        OLD_CONDITION_VALUES[v] ?? v,
+      ])
+    );
+  }
+  if (
+    out.waves &&
+    out.waves.excellentMaxFt == null &&
+    out.waves.goodMaxFt != null
+  ) {
+    const w = out.waves;
+    out.waves = {
+      enabled: w.enabled ?? false,
+      excellentMaxFt: w.goodMaxFt,
+      acceptableMaxFt: (w.goodMaxFt + w.maxFt) / 2,
+      marginalMaxFt: w.maxFt,
+      minPeriodS: w.minPeriodS ?? 8,
+      protectedSectors: w.protectedSectors ?? [],
+      protectedMaxFt: w.protectedMaxFt ?? w.maxFt + 2,
+    };
+  }
+  return out;
+}
+
 // Deep-merge stored prefs over defaults so older saved locations pick
 // up new fields without breaking.
 export function mergePrefs(stored) {
   const base = defaultPrefs();
   if (!stored) return base;
-  // Older saves called the marine section "swell"; it is now "waves"
-  // (total wave height). Carry the values across.
-  if (stored.swell && !stored.waves) {
-    stored = { ...stored, waves: stored.swell };
-  }
-  return overlay(base, stored);
+  return overlay(base, migrateStored(stored));
 }

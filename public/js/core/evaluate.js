@@ -2,14 +2,36 @@ import { beaufortFromMph } from "./beaufort.js";
 import { sectorFromDegrees, SECTOR_NAMES } from "./prefs.js";
 import { categoryFromWmoCode, describeWmoCode } from "./wmo.js";
 
-// Statuses are ordered by severity. An hour's overall status is the
-// worst of its metric statuses, per the spec: one red makes the hour red.
-export const STATUS_ORDER = { good: 0, marginal: 1, bad: 2 };
+// Each metric rates its hour into one of four categories, ordered by
+// severity. An hour's overall category is the worst of its metrics.
+export const CATEGORY_ORDER = {
+  excellent: 0,
+  acceptable: 1,
+  marginal: 2,
+  notForMe: 3,
+};
 
-function worst(statuses) {
-  return statuses.reduce(
-    (acc, s) => (STATUS_ORDER[s] > STATUS_ORDER[acc] ? s : acc),
-    "good"
+// Ramp position of each category on the 0..1 score scale. Excellent,
+// acceptable, and marginal sit at the first three color-ramp anchors;
+// notForMe is the far end.
+export const CATEGORY_VALUE = {
+  excellent: 0,
+  acceptable: 1 / 3,
+  marginal: 2 / 3,
+  notForMe: 1,
+};
+
+export const CATEGORY_LABELS = {
+  excellent: "Excellent",
+  acceptable: "Acceptable",
+  marginal: "Marginal",
+  notForMe: "Not for me",
+};
+
+function worst(categories) {
+  return categories.reduce(
+    (acc, c) => (CATEGORY_ORDER[c] > CATEGORY_ORDER[acc] ? c : acc),
+    "excellent"
   );
 }
 
@@ -17,68 +39,78 @@ function evalWind(hour, prefs) {
   const b = beaufortFromMph(hour.windMph);
   const sector = sectorFromDegrees(hour.windDirDeg);
   const isProtected = prefs.wind.protectedSectors.includes(sector);
-  const limit = isProtected
-    ? Math.max(prefs.wind.max, prefs.wind.protectedMax)
-    : prefs.wind.max;
-  let status;
-  if (b.level > limit) status = "bad";
-  else if (b.level <= prefs.wind.goodMax) status = "good";
-  else status = "marginal";
+  // Protected directions extend the marginal ceiling, not the nicer tiers.
+  const marginalLimit = isProtected
+    ? Math.max(prefs.wind.marginalMax, prefs.wind.protectedMax)
+    : prefs.wind.marginalMax;
+  let category;
+  if (b.level <= prefs.wind.excellentMax) category = "excellent";
+  else if (b.level <= prefs.wind.acceptableMax) category = "acceptable";
+  else if (b.level <= marginalLimit) category = "marginal";
+  else category = "notForMe";
   return {
-    status,
+    category,
     value: `${Math.round(hour.windMph)} mph ${SECTOR_NAMES[sector]}`,
     detail: `Beaufort ${b.level} (${b.name})` +
-      (isProtected && b.level > prefs.wind.max ? ", allowed by protected direction" : ""),
+      (isProtected && b.level > prefs.wind.marginalMax
+        ? ", allowed by protected direction"
+        : ""),
   };
 }
 
 function evalTemp(hour, prefs) {
   const t = hour.tempF;
-  const { min, max, sweetMin, sweetMax } = prefs.temp;
-  let status;
-  if (t < min || t > max) status = "bad";
-  else if (t >= sweetMin && t <= sweetMax) status = "good";
-  else status = "marginal";
-  return { status, value: `${Math.round(t)}°F`, detail: "" };
+  const p = prefs.temp;
+  let category;
+  if (t >= p.excellentMin && t <= p.excellentMax) category = "excellent";
+  else if (t >= p.acceptableMin && t <= p.acceptableMax) category = "acceptable";
+  else if (t >= p.marginalMin && t <= p.marginalMax) category = "marginal";
+  else category = "notForMe";
+  return { category, value: `${Math.round(t)}°F`, detail: "" };
 }
 
 function evalConditions(hour, prefs) {
-  const category = categoryFromWmoCode(hour.weatherCode);
-  const status = prefs.conditions[category] ?? "marginal";
-  return { status, value: describeWmoCode(hour.weatherCode), detail: "" };
+  const kind = categoryFromWmoCode(hour.weatherCode);
+  const category = prefs.conditions[kind] ?? "marginal";
+  return { category, value: describeWmoCode(hour.weatherCode), detail: "" };
 }
 
+// Tide is a gate, not a quality scale: enough water or not, with a
+// marginal buffer just above the minimum.
 function evalTide(hour, prefs) {
   if (hour.tideFt == null) {
-    return { status: "marginal", value: "no data", detail: "" };
+    return { category: "marginal", value: "no data", detail: "" };
   }
   const { minFt, marginFt } = prefs.tide;
-  let status;
-  if (hour.tideFt < minFt) status = "bad";
-  else if (hour.tideFt < minFt + marginFt) status = "marginal";
-  else status = "good";
-  return { status, value: `${hour.tideFt.toFixed(1)} ft`, detail: "MLLW" };
+  let category;
+  if (hour.tideFt < minFt) category = "notForMe";
+  else if (hour.tideFt < minFt + marginFt) category = "marginal";
+  else category = "excellent";
+  return { category, value: `${hour.tideFt.toFixed(1)} ft`, detail: "MLLW" };
 }
 
 // Rates the total sea state: waveFt is significant wave height with
 // swell and wind waves combined, per the observation study (a small
-// swell plus wind chop can still be a no-go).
+// swell plus wind chop can still be a no-go). The minimum period only
+// gates the excellent tier; short-period water at excellent height
+// paddles like merely acceptable water, not dangerous water.
 function evalWaves(hour, prefs) {
   if (hour.waveFt == null) {
-    return { status: "marginal", value: "no data", detail: "" };
+    return { category: "marginal", value: "no data", detail: "" };
   }
+  const p = prefs.waves;
   const sector = sectorFromDegrees(hour.waveDirDeg ?? 0);
-  const isProtected = prefs.waves.protectedSectors.includes(sector);
-  const limit = isProtected
-    ? Math.max(prefs.waves.maxFt, prefs.waves.protectedMaxFt)
-    : prefs.waves.maxFt;
-  let status;
-  if (hour.waveFt > limit) status = "bad";
-  else if (
-    hour.waveFt <= prefs.waves.goodMaxFt &&
-    (hour.wavePeriodS == null || hour.wavePeriodS >= prefs.waves.minPeriodS)
-  ) status = "good";
-  else status = "marginal";
+  const isProtected = p.protectedSectors.includes(sector);
+  const marginalLimit = isProtected
+    ? Math.max(p.marginalMaxFt, p.protectedMaxFt)
+    : p.marginalMaxFt;
+  const periodOk =
+    hour.wavePeriodS == null || hour.wavePeriodS >= p.minPeriodS;
+  let category;
+  if (hour.waveFt > marginalLimit) category = "notForMe";
+  else if (hour.waveFt <= p.excellentMaxFt && periodOk) category = "excellent";
+  else if (hour.waveFt <= p.acceptableMaxFt) category = "acceptable";
+  else category = "marginal";
   // Components are shown for context, not as a sum: wave heights
   // combine non-linearly and the total also includes secondary swell
   // trains Open-Meteo does not break out.
@@ -88,11 +120,11 @@ function evalWaves(hour, prefs) {
       `primary swell ${hour.swellFt.toFixed(1)} ft, wind chop ${hour.windWaveFt.toFixed(1)} ft`
     );
   }
-  if (isProtected && hour.waveFt > prefs.waves.maxFt) {
+  if (isProtected && hour.waveFt > p.marginalMaxFt) {
     details.push("allowed by protected direction");
   }
   return {
-    status,
+    category,
     value: `${hour.waveFt.toFixed(1)} ft @ ${
       hour.wavePeriodS != null ? Math.round(hour.wavePeriodS) : "?"
     }s ${SECTOR_NAMES[sector]}`,
@@ -102,11 +134,10 @@ function evalWaves(hour, prefs) {
 
 // hour: merged hourly record from core/forecast.js.
 // Returns { metrics: { wind, temp, conditions, tide?, waves? }, overall,
-// score }. `overall` is the worst metric status. `score` is the hour's
-// ramp position: any bad metric pins it to 1 (full red); otherwise the
-// fraction of good metrics sets the spot on the full ramp regardless of
-// how many metrics there are. All good is 0 (green), half good is 0.5
-// (yellow), a quarter good is 0.75 (between yellow and red).
+// score }. `overall` is the worst metric category. `score` is the hour's
+// ramp position: any notForMe metric pins it to 1; otherwise the mean
+// of the metric category values, so an all-excellent hour is 0 and an
+// all-marginal hour is 2/3.
 export function evaluateHour(hour, prefs) {
   const metrics = {
     wind: evalWind(hour, prefs),
@@ -115,10 +146,12 @@ export function evaluateHour(hour, prefs) {
   };
   if (prefs.tide.enabled) metrics.tide = evalTide(hour, prefs);
   if (prefs.waves.enabled) metrics.waves = evalWaves(hour, prefs);
-  const statuses = Object.values(metrics).map((m) => m.status);
-  const overall = worst(statuses);
-  const goodCount = statuses.filter((s) => s === "good").length;
+  const categories = Object.values(metrics).map((m) => m.category);
+  const overall = worst(categories);
   const score =
-    overall === "bad" ? 1 : 1 - goodCount / statuses.length;
+    overall === "notForMe"
+      ? 1
+      : categories.reduce((sum, c) => sum + CATEGORY_VALUE[c], 0) /
+        categories.length;
   return { metrics, overall, score };
 }

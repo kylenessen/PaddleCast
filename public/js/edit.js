@@ -14,16 +14,24 @@ const editor = document.getElementById("editor");
 // Full-prefs fallback shape, so a config.json that omits a section (or a
 // key) still gives every control something to bind to.
 const SHAPE = {
-  wind: { goodMax: 1, max: 3, protectedSectors: [], protectedMax: 4 },
-  temp: { min: 55, max: 85, sweetMin: 62, sweetMax: 78 },
+  wind: {
+    excellentMax: 1, acceptableMax: 2, marginalMax: 3,
+    protectedSectors: [], protectedMax: 4,
+  },
+  temp: {
+    excellentMin: 65, excellentMax: 75,
+    acceptableMin: 60, acceptableMax: 80,
+    marginalMin: 55, marginalMax: 85,
+  },
   conditions: {
-    sunny: "good", partly: "good", overcast: "marginal", fog: "marginal",
-    drizzle: "bad", rain: "bad", storm: "bad",
+    sunny: "excellent", partly: "acceptable",
+    overcast: "marginal", fog: "marginal",
+    drizzle: "notForMe", rain: "notForMe", storm: "notForMe",
   },
   tide: { enabled: false, stationId: "", minFt: 2.5, marginFt: 0.5 },
   waves: {
-    enabled: false, goodMaxFt: 2, maxFt: 4, minPeriodS: 8,
-    protectedSectors: [], protectedMaxFt: 6,
+    enabled: false, excellentMaxFt: 2, acceptableMaxFt: 3, marginalMaxFt: 4,
+    minPeriodS: 8, protectedSectors: [], protectedMaxFt: 6,
   },
 };
 

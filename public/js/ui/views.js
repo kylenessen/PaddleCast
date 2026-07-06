@@ -109,14 +109,14 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
   for (const hour of day.hours) {
     const row = el("div", "hour-row");
     row.style.setProperty("--overall", statusColor(hour.overall, scheme));
-    row.classList.toggle("hour-bad", hour.overall === "bad");
+    row.classList.toggle("hour-bad", hour.overall === "notForMe");
     row.appendChild(el("span", "hour-time", fmtHour(hour.time)));
 
     const dots = el("div", "hour-dots");
     for (const [key, metric] of Object.entries(hour.metrics)) {
       const meta = METRIC_META[key];
       const dot = el("span", "metric-dot");
-      dot.style.background = statusColor(metric.status, scheme);
+      dot.style.background = statusColor(metric.category, scheme);
       dot.appendChild(el("span", "metric-icon", meta.icon));
       attachTooltip(dot, () =>
         `${meta.label}: ${metric.value}` +
@@ -174,10 +174,11 @@ export function renderLocationSummary(location, forecast, { onPickDay }) {
     cell.appendChild(el("span", "week-day-name", weekdayOf(day.date)));
     cell.appendChild(el("span", "week-day-date", day.date.slice(5).replace("-", "/")));
     cell.appendChild(dayColorBar(day, scheme));
-    const counts = { good: 0, marginal: 0, bad: 0 };
+    const counts = { excellent: 0, acceptable: 0, marginal: 0, notForMe: 0 };
     for (const h of day.hours) counts[h.overall]++;
     attachTooltip(cell, () =>
-      `${counts.good} good · ${counts.marginal} marginal · ${counts.bad} bad hours`
+      `${counts.excellent} excellent · ${counts.acceptable} acceptable · ` +
+      `${counts.marginal} marginal · ${counts.notForMe} not-for-me hours`
     );
     cell.addEventListener("click", () => onPickDay(i));
     week.appendChild(cell);

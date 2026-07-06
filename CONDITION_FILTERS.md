@@ -4,6 +4,11 @@ Encodes what the observation study (see `analysis/observations/REPORT.md`) and o
 kayak-fishing guidance tell us about turning forecast/observation data into a
 go / marginal / no-go rating. Two location archetypes, because the physics differ.
 
+The app now rates each metric into four categories rather than three: excellent,
+acceptable, marginal, not for me. The tables below predate that split. Read their
+"good" band as spanning excellent plus acceptable, with the study's force 0-1
+(rated good) as excellent and force 2 (a coin flip) as acceptable.
+
 ## Core principle
 
 Rate on what the paddler will actually feel on the water, not on a single headline
