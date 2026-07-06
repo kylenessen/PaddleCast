@@ -7,17 +7,23 @@
 // (functions/api/forecast.js). Until initConfig runs, the built-in
 // fallbacks in core/prefs.js apply and the location list is empty.
 
-let config = { defaults: {}, locations: [] };
+let config = { defaults: {}, locations: [], colors: {} };
 
 export function initConfig(data) {
   config = {
     defaults: data?.defaults ?? {},
     locations: Array.isArray(data?.locations) ? data.locations : [],
+    colors: data?.colors ?? {},
   };
 }
 
 export function getConfigDefaults() {
   return config.defaults;
+}
+
+// Optional per-scheme anchor color overrides, keyed by scheme id.
+export function getConfigColors() {
+  return config.colors;
 }
 
 export function getDefaultLocations() {

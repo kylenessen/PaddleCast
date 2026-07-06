@@ -1,34 +1,38 @@
-// Color schemes for condition statuses. Default is green-to-red, with a
-// blue-to-red option for colorblind accessibility.
+// Color ramps for condition scores. Each scheme is four anchor colors,
+// one per category (excellent, acceptable, marginal, notForMe), sitting
+// at scores 0, 1/3, 2/3, and 1. An hour's color is its score's position
+// on the ramp, blending linearly between adjacent anchors; a metric's
+// color is its category's anchor exactly.
+//
+// The shipped anchors can be retuned without code changes through the
+// "colors" key in config.json, keyed by scheme id.
+
+import { CATEGORY_ORDER } from "./evaluate.js";
+import { getConfigColors } from "../config.js";
 
 export const SCHEMES = {
   "green-red": {
     label: "Green to red (default)",
-    good: "#2e9e44",
-    marginal: "#e2b93b",
-    bad: "#d84b3a",
+    anchors: ["#15803D", "#8AC926", "#FFCA3A", "#C0392B"],
   },
   "blue-red": {
     label: "Blue to red (colorblind friendly)",
-    good: "#3573d9",
-    marginal: "#e2b93b",
-    bad: "#d84b3a",
+    anchors: ["#1982C4", "#74B9E0", "#FFCA3A", "#C0392B"],
   },
 };
 
-// Interim mapping of the four categories onto the three scheme colors,
-// until the four-anchor ramp lands (see the scoring issue).
-const CATEGORY_TO_STATUS = {
-  excellent: "good",
-  acceptable: "good",
-  marginal: "marginal",
-  notForMe: "bad",
-};
+export function schemeAnchors(schemeId) {
+  const id = SCHEMES[schemeId] ? schemeId : "green-red";
+  const override = getConfigColors()[id];
+  return Array.isArray(override) && override.length === 4
+    ? override
+    : SCHEMES[id].anchors;
+}
 
-export function statusColor(status, schemeId) {
-  const scheme = SCHEMES[schemeId] ?? SCHEMES["green-red"];
-  const key = CATEGORY_TO_STATUS[status] ?? status;
-  return scheme[key] ?? scheme.marginal;
+// The anchor color of a category, used for per-metric chips.
+export function categoryColor(category, schemeId) {
+  const anchors = schemeAnchors(schemeId);
+  return anchors[CATEGORY_ORDER[category] ?? 2];
 }
 
 function hexToRgb(hex) {
@@ -46,13 +50,24 @@ function mix(hexA, hexB, t) {
   return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 }
 
-// Continuous ramp position, GIS style: 0 is the good color, 0.5 the
-// marginal color, 1 the bad color, and scores in between land on
-// intermediate shades along the ramp. All-good stays exactly good;
-// two goods and a marginal sit a shade toward yellow.
+// Continuous ramp position, GIS style: score 0 is the excellent anchor,
+// 1/3 acceptable, 2/3 marginal, 1 the notForMe anchor, with scores in
+// between landing on intermediate shades.
 export function rampColor(score, schemeId) {
-  const scheme = SCHEMES[schemeId] ?? SCHEMES["green-red"];
-  const t = Math.min(Math.max(score, 0), 1) * 2;
-  if (t <= 1) return mix(scheme.good, scheme.marginal, t);
-  return mix(scheme.marginal, scheme.bad, t - 1);
+  const anchors = schemeAnchors(schemeId);
+  const t = Math.min(Math.max(score, 0), 1) * (anchors.length - 1);
+  const i = Math.min(Math.floor(t), anchors.length - 2);
+  return mix(anchors[i], anchors[i + 1], t - i);
+}
+
+// Foreground color that stays readable on the given background, which
+// may be a #hex or an rgb() string. Dark ink on the light gold anchors,
+// white on deep green and red.
+export function textColorOn(background) {
+  let rgb;
+  if (background.startsWith("#")) rgb = hexToRgb(background);
+  else rgb = (background.match(/\d+/g) ?? ["128", "128", "128"]).map(Number);
+  const [r, g, b] = rgb;
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance > 150 ? "#1e2a30" : "#ffffff";
 }

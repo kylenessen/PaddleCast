@@ -1,4 +1,4 @@
-import { statusColor, rampColor } from "../core/colors.js";
+import { categoryColor, rampColor } from "../core/colors.js";
 import { getSettings } from "../storage.js";
 
 const METRIC_META = {
@@ -108,15 +108,15 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
   const list = el("div", "hour-list");
   for (const hour of day.hours) {
     const row = el("div", "hour-row");
-    row.style.setProperty("--overall", statusColor(hour.overall, scheme));
-    row.classList.toggle("hour-bad", hour.overall === "notForMe");
+    row.style.setProperty("--overall", rampColor(hour.score, scheme));
+    row.classList.toggle("hour-bad", hour.score >= 1);
     row.appendChild(el("span", "hour-time", fmtHour(hour.time)));
 
     const dots = el("div", "hour-dots");
     for (const [key, metric] of Object.entries(hour.metrics)) {
       const meta = METRIC_META[key];
       const dot = el("span", "metric-dot");
-      dot.style.background = statusColor(metric.category, scheme);
+      dot.style.background = categoryColor(metric.category, scheme);
       dot.appendChild(el("span", "metric-icon", meta.icon));
       attachTooltip(dot, () =>
         `${meta.label}: ${metric.value}` +
@@ -136,11 +136,9 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
 
 // ---- week summary ----
 
-// A day's color signature: one solid stripe per hour, no blending between
-// hours. An hour with any bad metric is the full bad color; otherwise the
-// fraction of good metrics picks the spot on the full ramp (all good is
-// the good color, half good exactly the marginal color, a quarter good
-// between marginal and bad).
+// A day's color signature: one solid stripe per hour, no blending
+// between hours. Each stripe is the hour's canonical ramp color, the
+// same color the hour row accent uses in the day view.
 function dayColorBar(day, scheme) {
   const bar = el("span", "day-bar");
   const n = day.hours.length;

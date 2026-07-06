@@ -134,10 +134,18 @@ function evalWaves(hour, prefs) {
 
 // hour: merged hourly record from core/forecast.js.
 // Returns { metrics: { wind, temp, conditions, tide?, waves? }, overall,
-// score }. `overall` is the worst metric category. `score` is the hour's
-// ramp position: any notForMe metric pins it to 1; otherwise the mean
-// of the metric category values, so an all-excellent hour is 0 and an
-// all-marginal hour is 2/3.
+// score }. `overall` is the worst metric category.
+//
+// `score` is the hour's ramp position, built from weighted components
+// rather than raw metrics: wind counts as one component, waves (when
+// enabled) as one, and comfort as one, where comfort is the worse of
+// temperature and sky conditions. Weighting comfort as a single
+// component keeps the nice-to-haves from outvoting the things that
+// decide whether the paddle happens. Any notForMe metric pins the score
+// to 1, so the average only differentiates viable hours, which top out
+// at 2/3 (the marginal anchor). Tide participates through the pin only:
+// not enough water reds out the hour, and above the minimum it says
+// nothing about how good the hour is.
 export function evaluateHour(hour, prefs) {
   const metrics = {
     wind: evalWind(hour, prefs),
@@ -146,12 +154,17 @@ export function evaluateHour(hour, prefs) {
   };
   if (prefs.tide.enabled) metrics.tide = evalTide(hour, prefs);
   if (prefs.waves.enabled) metrics.waves = evalWaves(hour, prefs);
-  const categories = Object.values(metrics).map((m) => m.category);
-  const overall = worst(categories);
-  const score =
-    overall === "notForMe"
-      ? 1
-      : categories.reduce((sum, c) => sum + CATEGORY_VALUE[c], 0) /
-        categories.length;
+  const overall = worst(Object.values(metrics).map((m) => m.category));
+  const comfort = Math.max(
+    CATEGORY_VALUE[metrics.temp.category],
+    CATEGORY_VALUE[metrics.conditions.category]
+  );
+  const components = [CATEGORY_VALUE[metrics.wind.category], comfort];
+  if (metrics.waves) components.push(CATEGORY_VALUE[metrics.waves.category]);
+  const pinned =
+    components.includes(1) || metrics.tide?.category === "notForMe";
+  const score = pinned
+    ? 1
+    : components.reduce((sum, v) => sum + v, 0) / components.length;
   return { metrics, overall, score };
 }

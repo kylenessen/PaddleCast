@@ -18,9 +18,9 @@ You add a location by dropping a point on a map and naming it. Each location get
 
 The shipped defaults come from the [observation study](analysis/observations/REPORT.md): wind is excellent through Beaufort 1, acceptable at Beaufort 2, and marginal at Beaufort 3. Waves are excellent under 2 ft, acceptable under 3 ft, and marginal under 4 ft of combined height.
 
-Forecasts cover daylight hours only, from civil first light through last light, so sunrise and sunset paddles are visible without nighttime clutter. Each hour shows a colored dot per metric, and the whole hour takes the color of its worst metric. Each hour also gets a continuous score, the mean ramp position of its metrics, so an hour with two good readings and one marginal shades proportionally between green and yellow. The home page stacks a week view for every saved location, with each day rendered as a smooth gradient of those hourly shades. Click a day to drill into the hourly detail.
+Forecasts cover daylight hours only, from civil first light through last light, so sunrise and sunset paddles are visible without nighttime clutter. Each metric is shown in the color of its own category. The hour as a whole gets one score built from weighted components: wind counts as one component, waves (when enabled) as one, and comfort as one, where comfort is the worse of temperature and sky conditions. If any metric lands on not-for-me the score pins to the red end regardless of the rest, and low tide pins the same way. Otherwise the score is the average of the components, so viable hours range from the excellent color down to the marginal color. The home page stacks a week view for every saved location, with each day drawn as one crisp stripe per hour in that hour's color. Click a day to drill into the hourly detail.
 
-Colors default to green-to-red, with a blue-to-red colorblind-friendly scheme in app settings.
+Hour colors come from a four-anchor ramp, one anchor per category, blending linearly in between. The anchors ship in the `colors` key of config.json, so the palette can be retuned without touching code. The default is deep green through light green and gold to red, with a blue-based colorblind-friendly scheme in app settings.
 
 ## Data sources
 

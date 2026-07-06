@@ -1,6 +1,6 @@
 import { loadConfig } from "./config.js";
 import { buildForecast } from "./core/forecast.js";
-import { SCHEMES } from "./core/colors.js";
+import { SCHEMES, schemeAnchors } from "./core/colors.js";
 import {
   getLocations, getLocation, saveLocation, newLocationId,
   getSettings, setSettings,
@@ -273,9 +273,9 @@ function showAppSettings() {
     label.appendChild(radio);
     label.appendChild(el("span", null, scheme.label));
     const swatches = el("span", "swatches");
-    for (const status of ["good", "marginal", "bad"]) {
+    for (const anchor of schemeAnchors(id)) {
       const sw = el("span", "swatch");
-      sw.style.background = scheme[status];
+      sw.style.background = anchor;
       swatches.appendChild(sw);
     }
     label.appendChild(swatches);
