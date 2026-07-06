@@ -2,9 +2,13 @@
 // enabled, so it works directly from the browser and from Cloudflare
 // Pages Functions alike.
 //
-// Both endpoints are asked for location-local timestamps. Every time
-// string they return ("YYYY-MM-DDTHH:mm") is in the location's own
-// timezone, and utcOffsetSeconds lets callers convert to UTC.
+// Both endpoints are asked for Pacific-time timestamps. Every time
+// string they return ("YYYY-MM-DDTHH:mm") is in that zone, and
+// utcOffsetSeconds lets callers convert to UTC. The zone is hardcoded
+// because every shipped location is on the California coast; revisit if
+// locations ever span timezones.
+
+const TIMEZONE = "America/Los_Angeles";
 
 const WEATHER_URL = "https://api.open-meteo.com/v1/forecast";
 const MARINE_URL = "https://marine-api.open-meteo.com/v1/marine";
@@ -27,7 +31,7 @@ export async function fetchWeather(lat, lon, days = 7) {
     temperature_unit: "fahrenheit",
     wind_speed_unit: "mph",
     forecast_days: String(days),
-    timezone: "auto",
+    timezone: TIMEZONE,
   });
   const data = await getJson(`${WEATHER_URL}?${params}`);
   const hours = new Map();
@@ -59,7 +63,7 @@ export async function fetchMarine(lat, lon, days = 7) {
     hourly: "wave_height,wave_period,wave_direction,swell_wave_height,wind_wave_height",
     length_unit: "imperial",
     forecast_days: String(days),
-    timezone: "auto",
+    timezone: TIMEZONE,
   });
   const data = await getJson(`${MARINE_URL}?${params}`);
   const hours = new Map();
