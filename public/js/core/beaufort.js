@@ -21,3 +21,10 @@ export function beaufortFromMph(mph) {
   }
   return BEAUFORT[BEAUFORT.length - 1];
 }
+
+// The mph span a level covers, for select labels: "0-1", "8-12".
+export function beaufortMphRange(level) {
+  const min = level === 0 ? 0 : BEAUFORT[level - 1].max + 1;
+  const max = BEAUFORT[level].max;
+  return max === Infinity ? `${min}+` : `${min}-${max}`;
+}

@@ -7,7 +7,7 @@
 // full prefs object reflecting the current control values, including
 // the protected-direction wheels for wind and waves.
 
-import { BEAUFORT } from "../core/beaufort.js";
+import { BEAUFORT, beaufortMphRange } from "../core/beaufort.js";
 import { CONDITION_CATEGORIES } from "../core/wmo.js";
 import { CATEGORY_LABELS } from "../core/evaluate.js";
 import { directionWheel } from "./wheel.js";
@@ -36,15 +36,45 @@ export function numberInput(value, { min, max, step = 1 } = {}) {
   return input;
 }
 
+// Anything past Beaufort 5 is nonsensical for paddling, so the pickers
+// stop there. A stored value above the cap still shows so it is not
+// silently rewritten.
+const BEAUFORT_PICKER_MAX = 5;
+
 function beaufortSelect(value) {
   const select = el("select");
+  const top = Math.max(BEAUFORT_PICKER_MAX, value);
   for (const b of BEAUFORT) {
-    const opt = el("option", null, `${b.level} — ${b.name}`);
+    if (b.level > top) break;
+    const opt = el(
+      "option",
+      null,
+      `${b.level} · ${b.name} (${beaufortMphRange(b.level)} mph)`
+    );
     opt.value = b.level;
     if (b.level === value) opt.selected = true;
     select.appendChild(opt);
   }
   return select;
+}
+
+// Keeps a set of threshold controls nested. Inputs are ordered
+// ascending; when one is edited, values before it in the chain clamp
+// down to it and values after clamp up, nudging neighbors rather than
+// rejecting the edit.
+function keepNested(inputs) {
+  const fix = (edited) => {
+    const i = inputs.indexOf(edited);
+    const v = Number(edited.value);
+    for (let j = 0; j < inputs.length; j++) {
+      const w = Number(inputs[j].value);
+      if (j < i && w > v) inputs[j].value = v;
+      if (j > i && w < v) inputs[j].value = v;
+    }
+  };
+  for (const input of inputs) {
+    input.addEventListener("change", () => fix(input));
+  }
 }
 
 function categorySelect(value) {
@@ -78,6 +108,7 @@ export function buildPrefsForm(prefs) {
   const windAcceptable = beaufortSelect(prefs.wind.acceptableMax);
   const windMarginal = beaufortSelect(prefs.wind.marginalMax);
   const windProtMax = beaufortSelect(prefs.wind.protectedMax);
+  keepNested([windExcellent, windAcceptable, windMarginal, windProtMax]);
   const windRow = el("div", "field-row");
   windRow.appendChild(field("Excellent up to", windExcellent));
   windRow.appendChild(field("Acceptable up to", windAcceptable));
@@ -99,6 +130,8 @@ export function buildPrefsForm(prefs) {
   const tAccMax = numberInput(prefs.temp.acceptableMax);
   const tMarMin = numberInput(prefs.temp.marginalMin);
   const tMarMax = numberInput(prefs.temp.marginalMax);
+  keepNested([tMarMin, tAccMin, tExcMin]);
+  keepNested([tExcMax, tAccMax, tMarMax]);
   const tempRows = [
     ["Excellent", tExcMin, tExcMax],
     ["Acceptable", tAccMin, tAccMax],
@@ -159,6 +192,7 @@ export function buildPrefsForm(prefs) {
   const wavesMarginal = numberInput(prefs.waves.marginalMaxFt, { step: 0.5 });
   const wavesPeriod = numberInput(prefs.waves.minPeriodS, { step: 1 });
   const wavesProtMax = numberInput(prefs.waves.protectedMaxFt, { step: 0.5 });
+  keepNested([wavesExcellent, wavesAcceptable, wavesMarginal, wavesProtMax]);
   waves.appendChild(field("Track waves at this location", wavesEnabled));
   const wavesRow = el("div", "field-row");
   wavesRow.appendChild(field("Excellent up to (ft)", wavesExcellent));
