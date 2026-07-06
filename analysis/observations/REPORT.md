@@ -75,4 +75,10 @@ Thresholds must live in the source's own units. Against the backyard station, gr
 
 Provider choice is confirmed. Preferring Tempest wind (already implemented) is right for nowcasting, and Open-Meteo is the best pure forecast to fill future hours. NWS hourly wind adds little here. Fog is worth forecasting; cloud cover and visibility fields from Open-Meteo or Tomorrow.io could drive the fog penalty.
 
+## 5. Has the wind tolerance shifted over time
+
+Splitting at Nov 2025 (69 observations before, 23 after), the overall logistic threshold barely moves (5.8 to 6.1 mph) and wind-adjusted score residuals show no time trend. But the middle band did shift. In the 2 to 6 mph no-fog band, early observations average 4.15 with several 2.0 and 3.5 ratings, while late observations average 4.62 and never dip below 4.0 (Mann-Whitney p = 0.03, small n). The early period never awarded 5.0 above 3.6 mph station wind. The late period gave a 5.0 at 5.1 mph (2026-07-03, rippled, evening). The June 2026 note states the mechanism directly, "Actually paddling now and the quality of being outside overcomes the imperfect water surface conditions," echoed by the Aug 2025 "Actual paddle. Pretty good but fighting wind" scoring above trend. Ratings made while actually on the water run higher than shore ratings of the same conditions.
+
+The ceiling has not moved. Every late observation at 7 mph or above (four of them, 7.2 to 11.2 mph, choppy or whitecaps) scored 3.0 or worse. So the recent data argues for widening the green band upward through roughly rippled/textured water (about 5 to 6 mph station wind) while keeping the red line near 7 mph. Two caveats, the late sample is small and contains zero fog days, and the marginal-band evidence rests on a handful of observations, two of which were made mid-paddle.
+
 Caveats. Sample covers roughly one year but is concentrated in mornings (52 of 92 observations between 7 and 10 am), high-wind exposure is thin (only 3 observations above 8 mph), and scores are one person's taste, which is precisely the point of PaddleCast.
