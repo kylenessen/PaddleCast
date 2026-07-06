@@ -1,4 +1,4 @@
-import { categoryColor, rampColor } from "../core/colors.js";
+import { categoryColor, rampColor, textColorOn } from "../core/colors.js";
 import { getSettings } from "../storage.js";
 
 const METRIC_META = {
@@ -85,33 +85,53 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
     root.appendChild(el("p", "warning", `⚠ ${warning}`));
   }
 
-  // Hour rows.
-  const list = el("div", "hour-list");
-  for (const hour of day.hours) {
-    const row = el("div", "hour-row");
-    row.style.setProperty("--overall", rampColor(hour.score, scheme));
-    row.classList.toggle("hour-bad", hour.score >= 1);
-    row.appendChild(el("span", "hour-time", fmtHour(hour.time)));
+  // Hour table, same shape as the home page's week table: hours down,
+  // one column per metric, so a single column reads as that attribute's
+  // arc over the day. The time cell wears the hour's overall ramp color
+  // (the same color as its stripe in the home timeline) and each metric
+  // cell is filled with its category's anchor color.
+  const keys = Object.keys(METRIC_META).filter((k) =>
+    day.hours.some((h) => h.metrics[k])
+  );
 
-    // Metric columns: the row's width divides equally into one segment
-    // per metric so segments line up down the table. The only color is
-    // a small dot per metric, emoji inside, tinted by its category; the
-    // value sits next to it in plain ink. Segments wrap to a second row
-    // when they get too narrow to read.
-    const bar = el("div", "metric-bar");
-    for (const [key, metric] of Object.entries(hour.metrics)) {
-      const meta = METRIC_META[key];
-      const seg = el("span", "metric-seg");
-      const dot = el("span", "metric-dot", meta.icon);
-      dot.style.background = categoryColor(metric.category, scheme);
-      seg.appendChild(dot);
-      seg.appendChild(el("span", "metric-seg-value", metric.value));
-      bar.appendChild(seg);
-    }
-    row.appendChild(bar);
-    list.appendChild(row);
+  const table = el("table", "day-table");
+  const thead = el("thead");
+  const headRow = el("tr");
+  headRow.appendChild(el("th", "dt-corner"));
+  for (const key of keys) {
+    const meta = METRIC_META[key];
+    const th = el("th", "dt-metric");
+    th.appendChild(el("span", "dt-metric-icon", meta.icon));
+    th.appendChild(el("span", "dt-metric-label", meta.label));
+    headRow.appendChild(th);
   }
-  root.appendChild(list);
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = el("tbody");
+  for (const hour of day.hours) {
+    const tr = el("tr");
+    const timeCell = el("th", "dt-time", fmtHour(hour.time));
+    const overall = rampColor(hour.score, scheme);
+    timeCell.style.background = overall;
+    timeCell.style.color = textColorOn(overall);
+    tr.appendChild(timeCell);
+
+    for (const key of keys) {
+      const td = el("td", "dt-cell");
+      const metric = hour.metrics[key];
+      if (metric) {
+        const bg = categoryColor(metric.category, scheme);
+        td.style.background = bg;
+        td.style.color = textColorOn(bg);
+        td.textContent = metric.value;
+      }
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  root.appendChild(table);
   return root;
 }
 
