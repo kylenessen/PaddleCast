@@ -1,3 +1,4 @@
+import { loadConfig } from "./config.js";
 import { buildForecast } from "./core/forecast.js";
 import { SCHEMES } from "./core/colors.js";
 import {
@@ -281,6 +282,20 @@ function showAppSettings() {
     sec.appendChild(label);
   }
   form.appendChild(sec);
+
+  const maintainer = el("section", "settings-section");
+  maintainer.appendChild(el("h3", null, "Site defaults"));
+  const hint = el("p", "hint");
+  hint.append(
+    "The locations and filters everyone sees ship in config.json. Use the "
+  );
+  const editLink = el("a", null, "config editor");
+  editLink.href = "edit.html";
+  hint.appendChild(editLink);
+  hint.append(" to change them, then commit the file to the repo.");
+  maintainer.appendChild(hint);
+  form.appendChild(maintainer);
+
   page.appendChild(form);
   setMain(page);
 }
@@ -299,5 +314,12 @@ function route() {
   else showHome();
 }
 
-window.addEventListener("hashchange", route);
-route();
+// Shipped defaults (filters and locations) come from config.json, so
+// load it before the first route. On failure the app still runs with
+// built-in fallbacks and whatever the visitor has saved locally.
+loadConfig()
+  .catch((err) => console.warn(err.message))
+  .then(() => {
+    window.addEventListener("hashchange", route);
+    route();
+  });

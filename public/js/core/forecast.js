@@ -32,11 +32,11 @@ export async function buildForecast(location, options = {}) {
   const weather = await fetchWeather(location.lat, location.lon, days);
 
   let marine = new Map();
-  if (prefs.swell.enabled) {
+  if (prefs.waves.enabled) {
     try {
       marine = await fetchMarine(location.lat, location.lon, days);
     } catch (err) {
-      warnings.push(`Swell data unavailable: ${err.message}`);
+      warnings.push(`Wave data unavailable: ${err.message}`);
     }
   }
 
@@ -83,9 +83,11 @@ export async function buildForecast(location, options = {}) {
         windMph: record.windMph,
         windDirDeg: record.windDirDeg,
         tideFt: tides.get(record.iso) ?? null,
+        waveFt: marine.get(record.iso)?.waveFt ?? null,
+        wavePeriodS: marine.get(record.iso)?.wavePeriodS ?? null,
+        waveDirDeg: marine.get(record.iso)?.waveDirDeg ?? null,
         swellFt: marine.get(record.iso)?.swellFt ?? null,
-        swellPeriodS: marine.get(record.iso)?.swellPeriodS ?? null,
-        swellDirDeg: marine.get(record.iso)?.swellDirDeg ?? null,
+        windWaveFt: marine.get(record.iso)?.windWaveFt ?? null,
       };
       hours.push({ ...hour, ...evaluateHour(hour, prefs) });
     }

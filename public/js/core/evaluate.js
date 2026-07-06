@@ -60,34 +60,48 @@ function evalTide(hour, prefs) {
   return { status, value: `${hour.tideFt.toFixed(1)} ft`, detail: "MLLW" };
 }
 
-function evalSwell(hour, prefs) {
-  if (hour.swellFt == null) {
+// Rates the total sea state: waveFt is significant wave height with
+// swell and wind waves combined, per the observation study (a small
+// swell plus wind chop can still be a no-go).
+function evalWaves(hour, prefs) {
+  if (hour.waveFt == null) {
     return { status: "marginal", value: "no data", detail: "" };
   }
-  const sector = sectorFromDegrees(hour.swellDirDeg ?? 0);
-  const isProtected = prefs.swell.protectedSectors.includes(sector);
+  const sector = sectorFromDegrees(hour.waveDirDeg ?? 0);
+  const isProtected = prefs.waves.protectedSectors.includes(sector);
   const limit = isProtected
-    ? Math.max(prefs.swell.maxFt, prefs.swell.protectedMaxFt)
-    : prefs.swell.maxFt;
+    ? Math.max(prefs.waves.maxFt, prefs.waves.protectedMaxFt)
+    : prefs.waves.maxFt;
   let status;
-  if (hour.swellFt > limit) status = "bad";
+  if (hour.waveFt > limit) status = "bad";
   else if (
-    hour.swellFt <= prefs.swell.goodMaxFt &&
-    (hour.swellPeriodS == null || hour.swellPeriodS >= prefs.swell.minPeriodS)
+    hour.waveFt <= prefs.waves.goodMaxFt &&
+    (hour.wavePeriodS == null || hour.wavePeriodS >= prefs.waves.minPeriodS)
   ) status = "good";
   else status = "marginal";
+  // Components are shown for context, not as a sum: wave heights
+  // combine non-linearly and the total also includes secondary swell
+  // trains Open-Meteo does not break out.
+  const details = [];
+  if (hour.swellFt != null && hour.windWaveFt != null) {
+    details.push(
+      `primary swell ${hour.swellFt.toFixed(1)} ft, wind chop ${hour.windWaveFt.toFixed(1)} ft`
+    );
+  }
+  if (isProtected && hour.waveFt > prefs.waves.maxFt) {
+    details.push("allowed by protected direction");
+  }
   return {
     status,
-    value: `${hour.swellFt.toFixed(1)} ft @ ${
-      hour.swellPeriodS != null ? Math.round(hour.swellPeriodS) : "?"
+    value: `${hour.waveFt.toFixed(1)} ft @ ${
+      hour.wavePeriodS != null ? Math.round(hour.wavePeriodS) : "?"
     }s ${SECTOR_NAMES[sector]}`,
-    detail: isProtected && hour.swellFt > prefs.swell.maxFt
-      ? "allowed by protected direction" : "",
+    detail: details.join(", "),
   };
 }
 
 // hour: merged hourly record from core/forecast.js.
-// Returns { metrics: { wind, temp, conditions, tide?, swell? }, overall,
+// Returns { metrics: { wind, temp, conditions, tide?, waves? }, overall,
 // score }. `overall` is the worst metric status. `score` is the hour's
 // ramp position: any bad metric pins it to 1 (full red); otherwise the
 // fraction of good metrics sets the spot on the full ramp regardless of
@@ -100,7 +114,7 @@ export function evaluateHour(hour, prefs) {
     conditions: evalConditions(hour, prefs),
   };
   if (prefs.tide.enabled) metrics.tide = evalTide(hour, prefs);
-  if (prefs.swell.enabled) metrics.swell = evalSwell(hour, prefs);
+  if (prefs.waves.enabled) metrics.waves = evalWaves(hour, prefs);
   const statuses = Object.values(metrics).map((m) => m.status);
   const overall = worst(statuses);
   const goodCount = statuses.filter((s) => s === "good").length;

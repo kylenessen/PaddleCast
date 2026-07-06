@@ -2,8 +2,15 @@
 //
 // Direction preferences use 16 compass sectors, index 0 = N through
 // 15 = NNW, each spanning 22.5 degrees. "Protected" sectors model
-// terrain shielding: when wind or swell arrives from a protected
+// terrain shielding: when wind or waves arrive from a protected
 // sector, the tolerated upper limit is extended.
+//
+// The values below are the built-in schema fallback. The shipped
+// defaults everyone sees live in config.json at the site root and are
+// overlaid on top (see config.js). Edit config.json, not this file, to
+// retune the site.
+
+import { getConfigDefaults } from "../config.js";
 
 export const SECTOR_NAMES = [
   "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
@@ -14,17 +21,19 @@ export function sectorFromDegrees(deg) {
   return Math.round(((deg % 360) + 360) % 360 / 22.5) % 16;
 }
 
-export function defaultPrefs() {
+function builtinPrefs() {
   return {
     wind: {
       // Beaufort level boundaries: <= good is blue/green,
-      // <= marginal is yellow, <= max is orange-ish, above max is red.
-      goodMax: 3,
-      max: 5,
+      // <= max is yellow, above max is red. Grounded in the
+      // observation study: force 0-1 rated good, force 2 a coin flip,
+      // force 3 in forecast terms is the tolerance ceiling.
+      goodMax: 1,
+      max: 3,
       // Sectors treated as terrain-protected, and the extended limit
       // that applies when wind comes from one of them.
       protectedSectors: [],
-      protectedMax: 6,
+      protectedMax: 4,
     },
     temp: {
       // Degrees F. min/max are the red boundaries, sweet spot is blue.
@@ -50,15 +59,32 @@ export function defaultPrefs() {
       // Within this many feet above the minimum counts as marginal.
       marginFt: 0.5,
     },
-    swell: {
+    waves: {
+      // Total significant wave height, swell and wind waves combined.
       enabled: false,
-      goodMaxFt: 3,
-      maxFt: 6,
+      goodMaxFt: 2,
+      maxFt: 4,
       minPeriodS: 8,
       protectedSectors: [],
-      protectedMaxFt: 8,
+      protectedMaxFt: 6,
     },
   };
+}
+
+// One-level deep merge: each top-level section merges over the base so
+// a partial override picks up the rest of the section from defaults.
+function overlay(base, over) {
+  if (!over) return base;
+  for (const key of Object.keys(base)) {
+    if (over[key] && typeof over[key] === "object") {
+      base[key] = { ...base[key], ...over[key] };
+    }
+  }
+  return base;
+}
+
+export function defaultPrefs() {
+  return overlay(builtinPrefs(), getConfigDefaults());
 }
 
 // Deep-merge stored prefs over defaults so older saved locations pick
@@ -66,10 +92,10 @@ export function defaultPrefs() {
 export function mergePrefs(stored) {
   const base = defaultPrefs();
   if (!stored) return base;
-  for (const key of Object.keys(base)) {
-    if (stored[key] && typeof stored[key] === "object") {
-      base[key] = { ...base[key], ...stored[key] };
-    }
+  // Older saves called the marine section "swell"; it is now "waves"
+  // (total wave height). Carry the values across.
+  if (stored.swell && !stored.waves) {
+    stored = { ...stored, waves: stored.swell };
   }
-  return base;
+  return overlay(base, stored);
 }

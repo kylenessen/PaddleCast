@@ -1,12 +1,13 @@
 // All persistence lives in localStorage on the user's device. No
 // accounts, no server-side state.
 //
-// The repo ships default locations (see locations.js). A saved location
-// with the same id shadows its default, so edits to a default stick
-// without touching the shipped list, and deleting one leaves a
-// tombstone in removedDefaults so it stays gone across sessions.
+// The repo ships default locations in config.json (loaded at boot, see
+// config.js). A saved location with the same id shadows its default, so
+// edits to a default stick without touching the shipped list, and
+// deleting one leaves a tombstone in removedDefaults so it stays gone
+// across sessions.
 
-import { DEFAULT_LOCATIONS } from "./locations.js";
+import { getDefaultLocations } from "./config.js";
 
 const KEY = "paddlecast.v1";
 
@@ -38,7 +39,7 @@ export function getLocations() {
   const saved = state.locations ?? [];
   const savedById = new Map(saved.map((l) => [l.id, l]));
   const out = [];
-  for (const def of DEFAULT_LOCATIONS) {
+  for (const def of getDefaultLocations()) {
     if (removed.has(def.id)) continue;
     out.push(savedById.get(def.id) ?? def);
     savedById.delete(def.id);
@@ -65,7 +66,7 @@ export function saveLocation(location) {
 export function deleteLocation(id) {
   const state = load();
   state.locations = (state.locations ?? []).filter((l) => l.id !== id);
-  if (DEFAULT_LOCATIONS.some((l) => l.id === id)) {
+  if (getDefaultLocations().some((l) => l.id === id)) {
     state.removedDefaults = [...new Set([...(state.removedDefaults ?? []), id])];
   }
   save(state);

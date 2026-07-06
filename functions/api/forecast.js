@@ -11,6 +11,22 @@
 //   Convenience form covering the common fields.
 
 import { buildForecast } from "../../public/js/core/forecast.js";
+import { initConfig } from "../../public/js/config.js";
+
+// The shipped defaults live in config.json alongside the static site.
+// Load it once per isolate through the Pages assets binding so the API
+// evaluates with the same defaults the website shows.
+let configLoaded = false;
+async function ensureConfig(env, request) {
+  if (configLoaded) return;
+  configLoaded = true;
+  try {
+    const res = await env.ASSETS.fetch(new URL("/config.json", request.url));
+    if (res.ok) initConfig(await res.json());
+  } catch {
+    // Built-in fallbacks in core/prefs.js still apply.
+  }
+}
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body, null, 2), {
@@ -38,7 +54,8 @@ async function handle(payload) {
   return json(forecast);
 }
 
-export async function onRequestPost({ request }) {
+export async function onRequestPost({ request, env }) {
+  await ensureConfig(env, request);
   let payload;
   try {
     payload = await request.json();
@@ -52,7 +69,8 @@ export async function onRequestPost({ request }) {
   }
 }
 
-export async function onRequestGet({ request }) {
+export async function onRequestGet({ request, env }) {
+  await ensureConfig(env, request);
   const q = new URL(request.url).searchParams;
   const payload = {
     lat: q.get("lat"),
@@ -68,8 +86,10 @@ export async function onRequestGet({ request }) {
       ...(q.get("minTide") ? { minFt: Number(q.get("minTide")) } : {}),
     };
   }
-  if (q.get("swell") === "1") {
-    payload.prefs.swell = { enabled: true };
+  // "waves" is the current name (total wave height); "swell" still
+  // works for old callers.
+  if (q.get("waves") === "1" || q.get("swell") === "1") {
+    payload.prefs.waves = { enabled: true };
   }
   try {
     return await handle(payload);

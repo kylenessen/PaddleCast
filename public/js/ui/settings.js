@@ -153,28 +153,28 @@ export function renderSettings(location, { onSaved, onDeleted }) {
   tide.appendChild(tideRow);
   form.appendChild(tide);
 
-  // Swell
-  const swell = section(
-    "Swell",
-    "For open-coast launches. Same idea as wind: protected directions allow a bigger swell."
+  // Waves
+  const waves = section(
+    "Waves",
+    "For open-coast launches. Total wave height, swell and wind waves combined. Same idea as wind: protected directions allow bigger waves."
   );
-  const swellEnabled = el("input");
-  swellEnabled.type = "checkbox";
-  swellEnabled.checked = prefs.swell.enabled;
-  const swellGood = numberInput(prefs.swell.goodMaxFt, { step: 0.5 });
-  const swellMax = numberInput(prefs.swell.maxFt, { step: 0.5 });
-  const swellPeriod = numberInput(prefs.swell.minPeriodS, { step: 1 });
-  const swellProtMax = numberInput(prefs.swell.protectedMaxFt, { step: 0.5 });
-  swell.appendChild(field("Track swell at this location", swellEnabled));
-  const swellRow = el("div", "field-row");
-  swellRow.appendChild(field("Good up to (ft)", swellGood));
-  swellRow.appendChild(field("Max tolerated (ft)", swellMax));
-  swellRow.appendChild(field("Min period (s)", swellPeriod));
-  swell.appendChild(swellRow);
-  const swellWheel = directionWheel(prefs.swell.protectedSectors);
-  swell.appendChild(swellWheel);
-  swell.appendChild(field("Max from protected directions (ft)", swellProtMax));
-  form.appendChild(swell);
+  const wavesEnabled = el("input");
+  wavesEnabled.type = "checkbox";
+  wavesEnabled.checked = prefs.waves.enabled;
+  const wavesGood = numberInput(prefs.waves.goodMaxFt, { step: 0.5 });
+  const wavesMax = numberInput(prefs.waves.maxFt, { step: 0.5 });
+  const wavesPeriod = numberInput(prefs.waves.minPeriodS, { step: 1 });
+  const wavesProtMax = numberInput(prefs.waves.protectedMaxFt, { step: 0.5 });
+  waves.appendChild(field("Track waves at this location", wavesEnabled));
+  const wavesRow = el("div", "field-row");
+  wavesRow.appendChild(field("Good up to (ft)", wavesGood));
+  wavesRow.appendChild(field("Max tolerated (ft)", wavesMax));
+  wavesRow.appendChild(field("Min period (s)", wavesPeriod));
+  waves.appendChild(wavesRow);
+  const wavesWheel = directionWheel(prefs.waves.protectedSectors);
+  waves.appendChild(wavesWheel);
+  waves.appendChild(field("Max from protected directions (ft)", wavesProtMax));
+  form.appendChild(waves);
 
   // Actions
   const actions = el("div", "settings-actions");
@@ -215,13 +215,13 @@ export function renderSettings(location, { onSaved, onDeleted }) {
           minFt: Number(tideMin.value),
           marginFt: Number(tideMargin.value),
         },
-        swell: {
-          enabled: swellEnabled.checked,
-          goodMaxFt: Number(swellGood.value),
-          maxFt: Number(swellMax.value),
-          minPeriodS: Number(swellPeriod.value),
-          protectedSectors: swellWheel.getSelected(),
-          protectedMaxFt: Number(swellProtMax.value),
+        waves: {
+          enabled: wavesEnabled.checked,
+          goodMaxFt: Number(wavesGood.value),
+          maxFt: Number(wavesMax.value),
+          minPeriodS: Number(wavesPeriod.value),
+          protectedSectors: wavesWheel.getSelected(),
+          protectedMaxFt: Number(wavesProtMax.value),
         },
       },
     };

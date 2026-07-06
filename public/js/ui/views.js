@@ -6,7 +6,7 @@ const METRIC_META = {
   temp: { icon: "🌡️", label: "Temp" },
   conditions: { icon: "⛅", label: "Sky" },
   tide: { icon: "🌊", label: "Tide" },
-  swell: { icon: "〰️", label: "Swell" },
+  waves: { icon: "〰️", label: "Waves" },
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

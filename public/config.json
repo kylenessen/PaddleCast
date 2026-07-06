@@ -1,0 +1,77 @@
+{
+  "defaults": {
+    "wind": {
+      "goodMax": 1,
+      "max": 3,
+      "protectedSectors": [],
+      "protectedMax": 4
+    },
+    "temp": {
+      "min": 55,
+      "max": 85,
+      "sweetMin": 62,
+      "sweetMax": 78
+    },
+    "conditions": {
+      "sunny": "good",
+      "partly": "good",
+      "overcast": "marginal",
+      "fog": "marginal",
+      "drizzle": "bad",
+      "rain": "bad",
+      "storm": "bad"
+    },
+    "tide": {
+      "enabled": false,
+      "stationId": "",
+      "minFt": 2.5,
+      "marginFt": 0.5
+    },
+    "waves": {
+      "enabled": false,
+      "goodMaxFt": 2,
+      "maxFt": 4,
+      "minPeriodS": 8,
+      "protectedSectors": [],
+      "protectedMaxFt": 6
+    }
+  },
+  "locations": [
+    {
+      "id": "baywood",
+      "name": "Baywood",
+      "lat": 35.32676,
+      "lon": -120.84213,
+      "prefs": {
+        "tide": { "enabled": true, "stationId": "9412110", "minFt": 2.5 }
+      }
+    },
+    {
+      "id": "morro-bay",
+      "name": "Morro Bay",
+      "lat": 35.35921,
+      "lon": -120.8501,
+      "prefs": {
+        "tide": { "enabled": true, "stationId": "9412110", "minFt": 2.5 }
+      }
+    },
+    {
+      "id": "cayucos",
+      "name": "Cayucos",
+      "lat": 35.4479,
+      "lon": -120.906,
+      "prefs": {
+        "waves": { "enabled": true }
+      }
+    },
+    {
+      "id": "avila-beach",
+      "name": "Avila Beach",
+      "lat": 35.1791,
+      "lon": -120.7318,
+      "prefs": {
+        "waves": { "enabled": true }
+      }
+    }
+  ]
+}
