@@ -15,6 +15,13 @@
       "autoPort": false
     },
     {
+      "name": "paddlecast-alt2",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "-d", "public", "8791"],
+      "port": 8791,
+      "autoPort": false
+    },
+    {
       "name": "paddlecast-editor",
       "runtimeExecutable": "node",
       "runtimeArgs": ["tools/edit-server.mjs"],
