@@ -14,9 +14,9 @@ function screen(pct, ideal, width) {
 }
 
 // hour: a weather record with cloudLowPct / cloudMidPct / cloudHighPct.
-// Returns { score, label, detail } where score runs 0 (gray or plain)
-// to 1 (fire in the sky) and label is a short display phrase, or null
-// when the cloud layers are missing.
+// Returns { score, label, emoji, detail } where score runs 0 (gray or
+// plain) to 1 (fire in the sky) and label is a short display phrase,
+// or null when the cloud layers are missing.
 export function glowQuality(hour) {
   const low = hour.cloudLowPct;
   const mid = hour.cloudMidPct;
@@ -30,15 +30,28 @@ export function glowQuality(hour) {
   const score = canvas * (1 - blocked);
 
   let label;
-  if (blocked >= 1) label = "clouded out";
-  else if (score >= 0.65) label = "vivid colors likely";
-  else if (score >= 0.4) label = "good color likely";
-  else if (score >= 0.15) label = "a little color possible";
-  else label = "little color expected";
+  let emoji;
+  if (blocked >= 1) {
+    label = "clouded out";
+    emoji = "☁️";
+  } else if (score >= 0.65) {
+    label = "vivid colors likely";
+    emoji = "🔥";
+  } else if (score >= 0.4) {
+    label = "good color likely";
+    emoji = "✨";
+  } else if (score >= 0.15) {
+    label = "a little color possible";
+    emoji = "🌤️";
+  } else {
+    label = "little color expected";
+    emoji = "😐";
+  }
 
   return {
     score,
     label,
+    emoji,
     detail: `cloud cover low ${Math.round(low)}% · mid ${Math.round(mid)}% · high ${Math.round(high)}%`,
   };
 }

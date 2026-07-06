@@ -1,4 +1,4 @@
-import { categoryColor, rampColor } from "../core/colors.js";
+import { categoryColor, rampColor, glowColor, textColorOn } from "../core/colors.js";
 import { getSettings } from "../storage.js";
 
 const METRIC_META = {
@@ -39,21 +39,29 @@ function fmtClock(iso) {
 
 // ---- hourly day view ----
 
-// A slim full-width row marking the sunrise or sunset that falls inside
-// the hour above it, with the predicted color quality from the cloud
-// layers (core/glow.js). Hovering shows the layer breakdown.
+// A centered full-width row marking the sunrise or sunset that falls
+// inside the hour above it. The predicted color quality (core/glow.js)
+// renders as a pill tinted along the glow ramp, gray sky through gold
+// to vivid coral. Hovering shows the cloud-layer breakdown.
 function sunEventRow(event, columns) {
   const tr = el("tr", "dt-sun-row");
   const td = el("td", "dt-sun");
   td.colSpan = columns;
   const icon = event.kind === "sunrise" ? "🌅" : "🌇";
   const name = event.kind === "sunrise" ? "Sunrise" : "Sunset";
-  let text = `${icon} ${name} ${fmtClock(event.time)}`;
+  td.appendChild(el("span", "dt-sun-when", `${icon} ${name} ${fmtClock(event.time)}`));
   if (event.quality) {
-    text += ` · ${event.quality.label}`;
+    const chip = el(
+      "span",
+      "dt-sun-chip",
+      `${event.quality.emoji} ${event.quality.label}`
+    );
+    const bg = glowColor(event.quality.score);
+    chip.style.background = bg;
+    chip.style.color = textColorOn(bg);
     td.title = event.quality.detail;
+    td.appendChild(chip);
   }
-  td.textContent = text;
   tr.appendChild(td);
   return tr;
 }

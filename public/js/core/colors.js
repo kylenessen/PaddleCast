@@ -60,6 +60,18 @@ export function rampColor(score, schemeId) {
   return mix(anchors[i], anchors[i + 1], t - i);
 }
 
+// Chip color for the sunrise/sunset glow prediction: slate gray for a
+// sky that stays gray or plain, warming through gold to vivid coral as
+// the score rises. Deliberately outside the condition schemes because
+// it depicts the literal color of the sky, not a paddling category.
+const GLOW_ANCHORS = ["#8D979E", "#FFC46B", "#FF7043"];
+
+export function glowColor(score) {
+  const t = Math.min(Math.max(score, 0), 1) * (GLOW_ANCHORS.length - 1);
+  const i = Math.min(Math.floor(t), GLOW_ANCHORS.length - 2);
+  return mix(GLOW_ANCHORS[i], GLOW_ANCHORS[i + 1], t - i);
+}
+
 // Foreground color that stays readable on the given background, which
 // may be a #hex or an rgb() string. Dark ink on the light gold anchors,
 // white on deep green and red.
