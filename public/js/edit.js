@@ -236,7 +236,7 @@ function addLocationRow(loc, listEl) {
 function renderLocations() {
   const holder = section(
     "Locations",
-    "Drag a marker to move a launch, or click an empty spot on the map to add one. Order here is the sidebar order on the site. Ids are stable slugs used in shared links, so avoid changing an existing one."
+    "Drag a marker to move a launch, or click an empty spot on the map to add one. Order here is the row order on the site's home table. Ids are stable slugs used in shared links, so avoid changing an existing one."
   );
 
   const listEl = el("div");

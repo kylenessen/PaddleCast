@@ -29,7 +29,7 @@ export function renderSettings(location, { onSaved }) {
       "p",
       "hint",
       "Saving here fixes every value for this spot only. To change your " +
-        "thresholds everywhere, use Settings in the sidebar."
+        "thresholds everywhere, use Settings on the home page."
     )
   );
 

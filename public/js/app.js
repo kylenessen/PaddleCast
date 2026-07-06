@@ -11,8 +11,6 @@ import { renderDayView, renderWeekTable } from "./ui/views.js";
 import { renderSettings } from "./ui/settings.js";
 
 const main = document.getElementById("main");
-const locList = document.getElementById("loc-list");
-const sidebar = document.getElementById("sidebar");
 
 // Forecasts fetched on this page load, keyed by location id. The whole
 // app is on-demand: reload the page to refresh data.
@@ -45,31 +43,41 @@ function el(tag, className, text) {
   return node;
 }
 
-// ---- sidebar ----
+// ---- chrome ----
 
-function renderSidebar() {
-  locList.textContent = "";
-  for (const loc of getLocations()) {
-    const item = el("a", "loc-item", loc.name);
-    item.href = `#/loc/${loc.id}`;
-    if (location.hash.startsWith(`#/loc/${loc.id}`)) {
-      item.classList.add("active");
-    }
-    locList.appendChild(item);
-  }
+// There is no menu bar. The home page is the navigation: the week
+// table's rows link to each location. Every other page gets a small
+// floating corner nav with a house back to the table and, when the
+// page has its own settings, a cog.
+
+const ICONS = {
+  home:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>',
+  cog:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+};
+
+function navIcon(name, href, label) {
+  const a = el("a", "nav-icon");
+  a.href = href;
+  a.title = label;
+  a.setAttribute("aria-label", label);
+  a.innerHTML = ICONS[name];
+  return a;
 }
 
-document.getElementById("sidebar-toggle").addEventListener("click", () => {
-  sidebar.classList.toggle("collapsed");
-});
-
-// On phone-width screens start collapsed so the forecast gets the room.
-if (window.innerWidth < 720) sidebar.classList.add("collapsed");
+function topNav(settingsHref) {
+  const nav = el("nav", "top-nav");
+  nav.appendChild(navIcon("home", "#/", "Home"));
+  if (settingsHref) nav.appendChild(navIcon("cog", settingsHref, "Settings"));
+  return nav;
+}
 
 // ---- views ----
 
-function setMain(node) {
+function setMain(node, nav) {
   main.textContent = "";
+  if (nav) main.appendChild(nav);
   main.appendChild(node);
 }
 
@@ -93,16 +101,41 @@ async function showHome() {
   }
 
   const page = el("div", "home");
-  const header = el("header", "day-header");
-  header.appendChild(el("h1", "page-title", "This week"));
-  const gear = el("a", "btn settings-link", "⚙ Settings");
-  gear.href = "#/settings";
-  header.appendChild(gear);
+  const header = el("header", "home-header");
+  header.appendChild(el("h1", "brand-title", "🛶 PaddleCast"));
   page.appendChild(header);
 
   const holder = el("div");
   holder.appendChild(loadingView("Loading forecasts…"));
   page.appendChild(holder);
+
+  const actions = el("div", "home-actions");
+  const gear = el("a", "btn btn-icon");
+  gear.href = "#/settings";
+  gear.innerHTML = ICONS.cog;
+  gear.appendChild(el("span", null, "Settings"));
+  actions.appendChild(gear);
+  page.appendChild(actions);
+
+  const footer = el("footer", "site-footer");
+  const credit = el("p");
+  const me = el("a", null, "Kyle Nessen");
+  me.href = "https://kylenessen.com";
+  me.target = "_blank";
+  me.rel = "noopener";
+  const lab = el("a", null, "Baywood Labs");
+  lab.href = "https://baywoodlabs.com";
+  lab.target = "_blank";
+  lab.rel = "noopener";
+  credit.append(
+    "PaddleCast is a community project made by ",
+    me,
+    " at ",
+    lab,
+    "."
+  );
+  footer.appendChild(credit);
+  page.appendChild(footer);
   setMain(page);
 
   const entries = await Promise.all(
@@ -138,13 +171,13 @@ async function showLocation(id, dayParam) {
     location.hash = "#/";
     return;
   }
-  setMain(loadingView(`Fetching conditions for ${loc.name}…`));
+  setMain(loadingView(`Fetching conditions for ${loc.name}…`), topNav());
   const forecast = await forecastFor(loc);
   if (forecast instanceof Error) {
     const errBox = el("div", "empty-state");
     errBox.appendChild(el("h1", null, loc.name));
     errBox.appendChild(el("p", "warning", `⚠ ${forecast.message}`));
-    setMain(errBox);
+    setMain(errBox, topNav());
     return;
   }
   const i = dayIndexFor(forecast, dayParam);
@@ -153,10 +186,8 @@ async function showLocation(id, dayParam) {
       location.hash = dayLink(id, forecast, n);
     },
   });
-  const gear = el("a", "btn settings-link", "⚙ Preferences");
-  gear.href = `#/loc/${id}/settings`;
-  view.querySelector(".day-header").appendChild(gear);
-  setMain(view);
+  // The cog here is this location's own preferences, not app settings.
+  setMain(view, topNav(`#/loc/${id}/settings`));
 }
 
 function showSettings(id) {
@@ -169,10 +200,10 @@ function showSettings(id) {
     renderSettings(loc, {
       onSaved: (updated) => {
         invalidate(updated.id);
-        renderSidebar();
         location.hash = `#/loc/${updated.id}`;
       },
-    })
+    }),
+    topNav()
   );
 }
 
@@ -219,7 +250,7 @@ async function showAddLocation() {
   form.appendChild(coords);
   form.appendChild(save);
   page.appendChild(form);
-  setMain(page);
+  setMain(page, topNav());
 
   await loadLeaflet();
   const map = L.map(mapDiv).setView([35.34, -120.83], 10);
@@ -252,7 +283,6 @@ async function showAddLocation() {
       prefs: {},
     };
     saveLocation(loc);
-    renderSidebar();
     location.hash = `#/loc/${loc.id}/settings`;
   });
 }
@@ -329,14 +359,13 @@ function showAppSettings() {
   });
 
   page.appendChild(form);
-  setMain(page);
+  setMain(page, topNav());
 }
 
 // ---- router ----
 
 function route() {
   const hash = location.hash || "#/";
-  renderSidebar();
   const settingsMatch = hash.match(/^#\/loc\/([^/?]+)\/settings/);
   const locMatch = hash.match(/^#\/loc\/([^/?]+)(?:\?day=([\d-]+))?/);
   if (hash.startsWith("#/add")) showAddLocation();
@@ -351,7 +380,7 @@ function route() {
 // The version baked into this file. config.json carries the matching
 // deploy stamp and is always fetched with no-cache, so a client running
 // old cached JS sees a newer number there and reloads itself once.
-const APP_VERSION = 2;
+const APP_VERSION = 3;
 
 function reloadIfStaleBuild() {
   const deployed = getConfigVersion();
