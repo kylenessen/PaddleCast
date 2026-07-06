@@ -145,7 +145,7 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
   return root;
 }
 
-// ---- week summary ----
+// ---- week table (home) ----
 
 // A day's color signature: one solid stripe per hour, no blending
 // between hours. Each stripe is the hour's canonical ramp color, the
@@ -166,32 +166,76 @@ function dayColorBar(day, scheme) {
   return bar;
 }
 
-export function renderLocationSummary(location, forecast, { onPickDay }) {
+// One table for the whole home page: a column per forecast day, a row
+// per location, each cell that day's hour-stripe timeline linking to
+// the full hourly view. Lets "can I paddle somewhere tomorrow?" be
+// answered by scanning a single column.
+//
+// entries: [{ location, forecast }] where forecast may be an Error.
+export function renderWeekTable(entries) {
   const scheme = getSettings().scheme;
-  const section = el("section", "loc-summary");
-  const title = el("h2", "loc-summary-title", location.name);
-  section.appendChild(title);
 
-  if (forecast instanceof Error) {
-    section.appendChild(el("p", "warning", `⚠ ${forecast.message}`));
-    return section;
+  // The days shown are the union of every forecast's dates, so the
+  // columns stay aligned even if one location is missing a day.
+  const dates = [...new Set(
+    entries.flatMap(({ forecast }) =>
+      forecast instanceof Error ? [] : forecast.days.map((d) => d.date)
+    )
+  )].sort();
+
+  const table = el("table", "week-table");
+  const thead = el("thead");
+  const headRow = el("tr");
+  headRow.appendChild(el("th", "wt-corner"));
+  for (const date of dates) {
+    const th = el("th", "wt-day");
+    th.appendChild(el("span", "wt-day-name", weekdayOf(date)));
+    th.appendChild(el("span", "wt-day-date", date.slice(5).replace("-", "/")));
+    headRow.appendChild(th);
   }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
 
-  const week = el("div", "week-row");
-  forecast.days.forEach((day, i) => {
-    const cell = el("button", "week-day");
-    cell.appendChild(el("span", "week-day-name", weekdayOf(day.date)));
-    cell.appendChild(el("span", "week-day-date", day.date.slice(5).replace("-", "/")));
-    cell.appendChild(dayColorBar(day, scheme));
-    const counts = { excellent: 0, acceptable: 0, marginal: 0, notForMe: 0 };
-    for (const h of day.hours) counts[h.overall]++;
-    attachTooltip(cell, () =>
-      `${counts.excellent} excellent · ${counts.acceptable} acceptable · ` +
-      `${counts.marginal} marginal · ${counts.notForMe} not-for-me hours`
-    );
-    cell.addEventListener("click", () => onPickDay(i));
-    week.appendChild(cell);
-  });
-  section.appendChild(week);
-  return section;
+  const tbody = el("tbody");
+  for (const { location, forecast } of entries) {
+    const tr = el("tr");
+    const nameCell = el("th", "wt-loc");
+    const nameLink = el("a", null, location.name);
+    nameLink.href = `#/loc/${location.id}`;
+    nameCell.appendChild(nameLink);
+    tr.appendChild(nameCell);
+
+    if (forecast instanceof Error) {
+      const td = el("td", "wt-error", `⚠ ${forecast.message}`);
+      td.colSpan = Math.max(dates.length, 1);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      continue;
+    }
+
+    const byDate = new Map(forecast.days.map((d) => [d.date, d]));
+    for (const date of dates) {
+      const td = el("td");
+      const day = byDate.get(date);
+      if (!day) {
+        tr.appendChild(td);
+        continue;
+      }
+      const cell = el("a", "wt-cell");
+      cell.href = `#/loc/${location.id}?day=${date}`;
+      cell.appendChild(dayColorBar(day, scheme));
+      const counts = { excellent: 0, acceptable: 0, marginal: 0, notForMe: 0 };
+      for (const h of day.hours) counts[h.overall]++;
+      attachTooltip(cell, () =>
+        `${location.name} ${weekdayOf(date)}: ` +
+        `${counts.excellent} excellent · ${counts.acceptable} acceptable · ` +
+        `${counts.marginal} marginal · ${counts.notForMe} not-for-me hours`
+      );
+      td.appendChild(cell);
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  return table;
 }

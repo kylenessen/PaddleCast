@@ -7,7 +7,7 @@ import {
 } from "./storage.js";
 import { mergePrefs } from "./core/prefs.js";
 import { buildPrefsForm } from "./ui/prefsform.js";
-import { renderDayView, renderLocationSummary } from "./ui/views.js";
+import { renderDayView, renderWeekTable } from "./ui/views.js";
 import { renderSettings } from "./ui/settings.js";
 
 const main = document.getElementById("main");
@@ -93,25 +93,26 @@ async function showHome() {
   }
 
   const page = el("div", "home");
-  page.appendChild(el("h1", "page-title", "This week"));
+  const header = el("header", "day-header");
+  header.appendChild(el("h1", "page-title", "This week"));
+  const gear = el("a", "btn settings-link", "⚙ Settings");
+  gear.href = "#/settings";
+  header.appendChild(gear);
+  page.appendChild(header);
+
+  const holder = el("div");
+  holder.appendChild(loadingView("Loading forecasts…"));
+  page.appendChild(holder);
   setMain(page);
 
-  await Promise.all(
-    locations.map(async (loc) => {
-      const holder = el("div");
-      holder.appendChild(loadingView(`Loading ${loc.name}…`));
-      page.appendChild(holder);
-      const forecast = await forecastFor(loc);
-      holder.textContent = "";
-      holder.appendChild(
-        renderLocationSummary(loc, forecast, {
-          onPickDay: (i) => {
-            location.hash = dayLink(loc.id, forecast, i);
-          },
-        })
-      );
-    })
+  const entries = await Promise.all(
+    locations.map(async (loc) => ({
+      location: loc,
+      forecast: await forecastFor(loc),
+    }))
   );
+  holder.textContent = "";
+  holder.appendChild(renderWeekTable(entries));
 }
 
 // Day links carry the calendar date (#/loc/baywood?day=2026-07-10), not
