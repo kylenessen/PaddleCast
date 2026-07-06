@@ -1,4 +1,4 @@
-import { categoryColor, rampColor, textColorOn } from "../core/colors.js";
+import { categoryColor, rampColor } from "../core/colors.js";
 import { getSettings } from "../storage.js";
 
 const METRIC_META = {
@@ -119,18 +119,18 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
     row.classList.toggle("hour-bad", hour.score >= 1);
     row.appendChild(el("span", "hour-time", fmtHour(hour.time)));
 
-    // Segmented metric bar: the row's width divides equally into one
-    // solid pill per metric, emoji and value centered inside, always
-    // visible. Segments wrap to a second row when they get too narrow
-    // to read.
+    // Metric columns: the row's width divides equally into one segment
+    // per metric so segments line up down the table. The only color is
+    // a small dot per metric, emoji inside, tinted by its category; the
+    // value sits next to it in plain ink. Segments wrap to a second row
+    // when they get too narrow to read.
     const bar = el("div", "metric-bar");
     for (const [key, metric] of Object.entries(hour.metrics)) {
       const meta = METRIC_META[key];
       const seg = el("span", "metric-seg");
-      const bg = categoryColor(metric.category, scheme);
-      seg.style.background = bg;
-      seg.style.color = textColorOn(bg);
-      seg.appendChild(el("span", "metric-icon", meta.icon));
+      const dot = el("span", "metric-dot", meta.icon);
+      dot.style.background = categoryColor(metric.category, scheme);
+      seg.appendChild(dot);
       seg.appendChild(el("span", "metric-seg-value", metric.value));
       attachTooltip(seg, () =>
         `${meta.label}: ${metric.value}` +

@@ -188,9 +188,10 @@ body {
 
 .hour-time { width: 48px; font-weight: 600; font-size: 14px; }
 
-/* Segmented metric bar: equal solid pills filling the row, values
-   always visible. min-width forces a wrap to a second row on narrow
-   screens instead of squeezing the text. */
+/* Metric columns: equal segments filling the row so metrics align
+   down the table, each a colored category dot with the emoji inside
+   and the value in plain text. min-width forces a wrap to a second row
+   on narrow screens instead of squeezing the text. */
 .metric-bar {
   flex: 1;
   min-width: 0;
@@ -204,15 +205,24 @@ body {
   min-width: 108px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 5px 8px;
-  border-radius: 8px;
+  gap: 7px;
+  padding: 2px 0;
   font-size: 13px;
   white-space: nowrap;
   cursor: default;
 }
-.metric-icon { font-size: 13px; }
+
+.metric-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
 .metric-seg-value { overflow: hidden; text-overflow: ellipsis; }
 
 .tooltip {
