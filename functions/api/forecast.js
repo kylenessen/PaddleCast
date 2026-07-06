@@ -11,6 +11,7 @@
 //   Convenience form covering the common fields.
 
 import { buildForecast } from "../../public/js/core/forecast.js";
+import { fetchTempestWind } from "../../public/js/providers/tempest.js";
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body, null, 2), {
@@ -22,7 +23,7 @@ function json(body, status = 200) {
   });
 }
 
-async function handle(payload) {
+async function handle(payload, env) {
   const lat = Number(payload.lat);
   const lon = Number(payload.lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
@@ -34,11 +35,15 @@ async function handle(payload) {
     lon,
     prefs: payload.prefs ?? {},
   };
-  const forecast = await buildForecast(location, { days: payload.days });
+  // With a TEMPEST_TOKEN secret set, Tempest wind replaces Open-Meteo's.
+  const fetchWind = env?.TEMPEST_TOKEN
+    ? (la, lo, days) => fetchTempestWind(la, lo, env.TEMPEST_TOKEN, days)
+    : undefined;
+  const forecast = await buildForecast(location, { days: payload.days, fetchWind });
   return json(forecast);
 }
 
-export async function onRequestPost({ request }) {
+export async function onRequestPost({ request, env }) {
   let payload;
   try {
     payload = await request.json();
@@ -46,13 +51,13 @@ export async function onRequestPost({ request }) {
     return json({ error: "request body must be JSON" }, 400);
   }
   try {
-    return await handle(payload);
+    return await handle(payload, env);
   } catch (err) {
     return json({ error: err.message }, 502);
   }
 }
 
-export async function onRequestGet({ request }) {
+export async function onRequestGet({ request, env }) {
   const q = new URL(request.url).searchParams;
   const payload = {
     lat: q.get("lat"),
@@ -72,7 +77,7 @@ export async function onRequestGet({ request }) {
     payload.prefs.swell = { enabled: true };
   }
   try {
-    return await handle(payload);
+    return await handle(payload, env);
   } catch (err) {
     return json({ error: err.message }, 502);
   }
