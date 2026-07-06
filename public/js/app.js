@@ -97,7 +97,7 @@ async function showHome() {
       holder.appendChild(
         renderLocationSummary(loc, forecast, {
           onPickDay: (i) => {
-            location.hash = `#/loc/${loc.id}?day=${i}`;
+            location.hash = dayLink(loc.id, forecast, i);
           },
         })
       );
@@ -105,7 +105,24 @@ async function showHome() {
   );
 }
 
-async function showLocation(id, dayIndex) {
+// Day links carry the calendar date (#/loc/baywood?day=2026-07-10), not
+// an index, so a shared link opens the same day for whoever clicks it.
+// A date that has already passed out of the forecast falls back to the
+// first day. Bare numeric indexes still work for old links.
+function dayLink(id, forecast, i) {
+  return `#/loc/${id}?day=${forecast.days[i]?.date ?? i}`;
+}
+
+function dayIndexFor(forecast, dayParam) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dayParam)) {
+    const i = forecast.days.findIndex((d) => d.date === dayParam);
+    return i >= 0 ? i : 0;
+  }
+  const n = Number(dayParam) || 0;
+  return Math.min(Math.max(n, 0), forecast.days.length - 1);
+}
+
+async function showLocation(id, dayParam) {
   const loc = getLocation(id);
   if (!loc) {
     location.hash = "#/";
@@ -120,10 +137,10 @@ async function showLocation(id, dayIndex) {
     setMain(errBox);
     return;
   }
-  const i = Math.min(Math.max(dayIndex, 0), forecast.days.length - 1);
+  const i = dayIndexFor(forecast, dayParam);
   const view = renderDayView(forecast, i, {
     onPickDay: (n) => {
-      location.hash = `#/loc/${id}?day=${n}`;
+      location.hash = dayLink(id, forecast, n);
     },
   });
   const gear = el("a", "btn settings-link", "⚙ Preferences");
@@ -274,11 +291,11 @@ function route() {
   const hash = location.hash || "#/";
   renderSidebar();
   const settingsMatch = hash.match(/^#\/loc\/([^/?]+)\/settings/);
-  const locMatch = hash.match(/^#\/loc\/([^/?]+)(?:\?day=(\d+))?/);
+  const locMatch = hash.match(/^#\/loc\/([^/?]+)(?:\?day=([\d-]+))?/);
   if (hash.startsWith("#/add")) showAddLocation();
   else if (hash.startsWith("#/settings")) showAppSettings();
   else if (settingsMatch) showSettings(settingsMatch[1]);
-  else if (locMatch) showLocation(locMatch[1], Number(locMatch[2] ?? 0));
+  else if (locMatch) showLocation(locMatch[1], locMatch[2] ?? "0");
   else showHome();
 }
 
