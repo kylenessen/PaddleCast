@@ -89,11 +89,18 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
   );
   root.appendChild(header);
 
-  // Day navigation chips.
+  // Day navigation chips. They divide the same width as the hour table
+  // below, with labels that compact when the chips get narrow (the
+  // container query in style.css swaps which label span shows).
   const nav = el("nav", "day-nav");
   forecast.days.forEach((d, i) => {
-    const chip = el("button", "day-chip", weekdayOf(d.date));
+    const chip = el("button", "day-chip");
     chip.classList.toggle("active", i === dayIndex);
+    const date = new Date(d.date + "T12:00:00");
+    const long = `${date.toLocaleDateString(undefined, { weekday: "long" })} ` +
+      `${date.getMonth() + 1}/${date.getDate()}`;
+    chip.appendChild(el("span", "day-chip-long", long));
+    chip.appendChild(el("span", "day-chip-short", weekdayOf(d.date).toUpperCase()));
     chip.appendChild(dayColorBar(d, scheme));
     chip.addEventListener("click", () => onPickDay(i));
     nav.appendChild(chip);
