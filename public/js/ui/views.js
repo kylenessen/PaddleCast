@@ -136,10 +136,10 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
 
 // ---- week summary ----
 
-// A day's color signature. Each hour's mean metric score picks a shade
-// along the good-marginal-bad ramp (GIS style: all good is exactly the
-// good color, two goods and a marginal a shade toward yellow), and the
-// shades blend smoothly across the day.
+// A day's color signature: one solid stripe per hour, no blending between
+// hours. An hour with any bad metric is the full bad color; otherwise its
+// good/marginal mix picks the shade (two goods and two marginals sit
+// exactly halfway between green and yellow).
 function dayColorBar(day, scheme) {
   const bar = el("span", "day-bar");
   const n = day.hours.length;
@@ -149,7 +149,9 @@ function dayColorBar(day, scheme) {
     bar.style.background = colors[0];
     return bar;
   }
-  const stops = colors.map((c, i) => `${c} ${((i + 0.5) / n) * 100}%`);
+  const stops = colors.map(
+    (c, i) => `${c} ${(i / n) * 100}%, ${c} ${((i + 1) / n) * 100}%`
+  );
   bar.style.background = `linear-gradient(to right, ${stops.join(", ")})`;
   return bar;
 }
