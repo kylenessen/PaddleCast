@@ -1,4 +1,4 @@
-import { statusColor } from "../core/colors.js";
+import { statusColor, rampColor } from "../core/colors.js";
 import { getSettings } from "../storage.js";
 
 const METRIC_META = {
@@ -136,16 +136,20 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
 
 // ---- week summary ----
 
-// A day's color signature: a stacked horizontal gradient of its hourly
-// overall statuses, the "swirl" that reads as mostly-good / mostly-bad.
+// A day's color signature. Each hour's mean metric score picks a shade
+// along the good-marginal-bad ramp (GIS style: all good is exactly the
+// good color, two goods and a marginal a shade toward yellow), and the
+// shades blend smoothly across the day.
 function dayColorBar(day, scheme) {
   const bar = el("span", "day-bar");
   const n = day.hours.length;
   if (n === 0) return bar;
-  const stops = day.hours.map((h, i) => {
-    const color = statusColor(h.overall, scheme);
-    return `${color} ${(i / n) * 100}% ${((i + 1) / n) * 100}%`;
-  });
+  const colors = day.hours.map((h) => rampColor(h.score, scheme));
+  if (n === 1) {
+    bar.style.background = colors[0];
+    return bar;
+  }
+  const stops = colors.map((c, i) => `${c} ${((i + 0.5) / n) * 100}%`);
   bar.style.background = `linear-gradient(to right, ${stops.join(", ")})`;
   return bar;
 }

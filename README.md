@@ -10,7 +10,7 @@ The site is a static single page app with no build step. When you load it, the b
 
 You add a location by dropping a point on a map and naming it. Each location gets its own preferences. Wind tolerance is set as a maximum Beaufort level, temperature as a range with a sweet spot, sky conditions as per-category ratings, tide as a minimum height against a NOAA station you specify, and swell as a size range with a minimum period. Wind and swell each have a compass wheel where you mark terrain-protected directions, which raises the tolerated maximum when conditions arrive from those headings.
 
-Forecasts cover daylight hours only, from civil first light through last light, so sunrise and sunset paddles are visible without nighttime clutter. Each hour shows a colored dot per metric, and the whole hour takes the color of its worst metric. The home page stacks a week view for every saved location, with each day rendered as a stripe of its hourly colors. Click a day to drill into the hourly detail.
+Forecasts cover daylight hours only, from civil first light through last light, so sunrise and sunset paddles are visible without nighttime clutter. Each hour shows a colored dot per metric, and the whole hour takes the color of its worst metric. Each hour also gets a continuous score, the mean ramp position of its metrics, so an hour with two good readings and one marginal shades proportionally between green and yellow. The home page stacks a week view for every saved location, with each day rendered as a smooth gradient of those hourly shades. Click a day to drill into the hourly detail.
 
 Colors default to green-to-red, with a blue-to-red colorblind-friendly scheme in app settings.
 

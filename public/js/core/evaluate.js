@@ -6,6 +6,9 @@ import { categoryFromWmoCode, describeWmoCode } from "./wmo.js";
 // worst of its metric statuses, per the spec: one red makes the hour red.
 export const STATUS_ORDER = { good: 0, marginal: 1, bad: 2 };
 
+// Ramp positions for the continuous score: good 0, marginal 0.5, bad 1.
+export const STATUS_SCORE = { good: 0, marginal: 0.5, bad: 1 };
+
 function worst(statuses) {
   return statuses.reduce(
     (acc, s) => (STATUS_ORDER[s] > STATUS_ORDER[acc] ? s : acc),
@@ -87,7 +90,11 @@ function evalSwell(hour, prefs) {
 }
 
 // hour: merged hourly record from core/forecast.js.
-// Returns { metrics: { wind, temp, conditions, tide?, swell? }, overall }.
+// Returns { metrics: { wind, temp, conditions, tide?, swell? }, overall,
+// score }. `overall` is the worst metric status (one red flags the
+// hour). `score` is the mean ramp position of the metrics, so an hour
+// with two goods and a marginal scores between good and marginal and
+// can be shaded proportionally on the color ramp.
 export function evaluateHour(hour, prefs) {
   const metrics = {
     wind: evalWind(hour, prefs),
@@ -96,6 +103,9 @@ export function evaluateHour(hour, prefs) {
   };
   if (prefs.tide.enabled) metrics.tide = evalTide(hour, prefs);
   if (prefs.swell.enabled) metrics.swell = evalSwell(hour, prefs);
-  const overall = worst(Object.values(metrics).map((m) => m.status));
-  return { metrics, overall };
+  const statuses = Object.values(metrics).map((m) => m.status);
+  const overall = worst(statuses);
+  const score =
+    statuses.reduce((sum, s) => sum + STATUS_SCORE[s], 0) / statuses.length;
+  return { metrics, overall, score };
 }
