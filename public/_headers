@@ -1,0 +1,6 @@
+# Cloudflare Pages headers. The whole site is a handful of small files
+# with no build step, so make every browser revalidate on each load
+# (no-cache still allows ETag 304s) and a fresh deploy shows up on the
+# next visit without a hard refresh.
+/*
+  Cache-Control: no-cache

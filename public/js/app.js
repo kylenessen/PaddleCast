@@ -1,4 +1,4 @@
-import { loadConfig } from "./config.js";
+import { loadConfig, getConfigVersion } from "./config.js";
 import { buildForecast } from "./core/forecast.js";
 import { SCHEMES, schemeAnchors } from "./core/colors.js";
 import {
@@ -314,12 +314,44 @@ function route() {
   else showHome();
 }
 
+// ---- staleness guards ----
+
+// The version baked into this file. config.json carries the matching
+// deploy stamp and is always fetched with no-cache, so a client running
+// old cached JS sees a newer number there and reloads itself once.
+const APP_VERSION = 2;
+
+function reloadIfStaleBuild() {
+  const deployed = getConfigVersion();
+  if (deployed <= APP_VERSION) return false;
+  // One attempt per deployed version, so a client that somehow still
+  // gets the old JS after reloading does not loop forever.
+  const guard = "paddlecast.reloadedFor";
+  if (sessionStorage.getItem(guard) === String(deployed)) return false;
+  sessionStorage.setItem(guard, String(deployed));
+  location.reload();
+  return true;
+}
+
+// iOS Safari resurrects the page from the back-forward cache with
+// day-old forecasts still on screen. Reload on restore, and when the
+// tab returns to the foreground after more than an hour away.
+window.addEventListener("pageshow", (e) => {
+  if (e.persisted) location.reload();
+});
+let hiddenAt = null;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") hiddenAt = Date.now();
+  else if (hiddenAt && Date.now() - hiddenAt > 60 * 60 * 1000) location.reload();
+});
+
 // Shipped defaults (filters and locations) come from config.json, so
 // load it before the first route. On failure the app still runs with
 // built-in fallbacks and whatever the visitor has saved locally.
 loadConfig()
   .catch((err) => console.warn(err.message))
   .then(() => {
+    if (reloadIfStaleBuild()) return;
     window.addEventListener("hashchange", route);
     route();
   });

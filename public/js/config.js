@@ -7,14 +7,21 @@
 // (functions/api/forecast.js). Until initConfig runs, the built-in
 // fallbacks in core/prefs.js apply and the location list is empty.
 
-let config = { defaults: {}, locations: [], colors: {} };
+let config = { version: 0, defaults: {}, locations: [], colors: {} };
 
 export function initConfig(data) {
   config = {
+    version: Number(data?.version) || 0,
     defaults: data?.defaults ?? {},
     locations: Array.isArray(data?.locations) ? data.locations : [],
     colors: data?.colors ?? {},
   };
+}
+
+// Deploy stamp used to detect a stale cached app (see app.js). Bump the
+// "version" in config.json whenever the JS or HTML changes.
+export function getConfigVersion() {
+  return config.version;
 }
 
 export function getConfigDefaults() {
