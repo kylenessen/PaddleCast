@@ -1,6 +1,6 @@
 import { mergePrefs } from "../core/prefs.js";
 import { buildPrefsForm, field, numberInput } from "./prefsform.js";
-import { saveLocation } from "../storage.js";
+import { saveLocation, getGlobalPrefs } from "../storage.js";
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -21,9 +21,17 @@ function section(title, hint) {
 // There is no delete here: adding locations is turned off in the UI, so
 // a deleted spot would be gone for good.
 export function renderSettings(location, { onSaved }) {
-  const prefs = mergePrefs(location.prefs);
+  const prefs = mergePrefs(location.prefs, getGlobalPrefs());
   const root = el("div", "settings-view");
   root.appendChild(el("h1", "loc-title", `${location.name} — Settings`));
+  root.appendChild(
+    el(
+      "p",
+      "hint",
+      "Saving here fixes every value for this spot only. To change your " +
+        "thresholds everywhere, use Settings in the sidebar."
+    )
+  );
 
   const form = el("form", "settings-form");
 

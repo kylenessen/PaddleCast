@@ -33,6 +33,20 @@ export function setSettings(settings) {
   save(state);
 }
 
+// The visitor's own default thresholds, layered between the shipped
+// config defaults and any per-location overrides (see core/prefs.js).
+// null means "no personal defaults saved".
+export function getGlobalPrefs() {
+  return load().globalPrefs ?? null;
+}
+
+export function setGlobalPrefs(prefs) {
+  const state = load();
+  if (prefs) state.globalPrefs = prefs;
+  else delete state.globalPrefs;
+  save(state);
+}
+
 export function getLocations() {
   const state = load();
   const removed = new Set(state.removedDefaults ?? []);

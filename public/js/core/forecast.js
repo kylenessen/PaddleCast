@@ -18,7 +18,9 @@ function localIsoFromUtc(utcMs, offsetSeconds) {
 // Build the full evaluated forecast for one location.
 //
 // location: { name, lat, lon, prefs } (prefs may be partial; defaults fill in)
-// options: { days } capped to 7.
+// options: { days } capped to 7, { globalPrefs } layered under the
+// location's own overrides (the browser passes the visitor's saved
+// defaults here).
 //
 // Returns { location, timezone, generatedAt, warnings, days }
 // where each day has { date, sun, hours } and each hour carries raw values
@@ -26,7 +28,7 @@ function localIsoFromUtc(utcMs, offsetSeconds) {
 // included, from civil dawn (first light) through civil dusk (last light).
 export async function buildForecast(location, options = {}) {
   const days = Math.min(Math.max(options.days ?? 7, 1), 7);
-  const prefs = mergePrefs(location.prefs);
+  const prefs = mergePrefs(location.prefs, options.globalPrefs);
   const warnings = [];
 
   const weather = await fetchWeather(location.lat, location.lon, days);

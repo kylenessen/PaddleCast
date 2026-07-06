@@ -3,8 +3,10 @@ import { buildForecast } from "./core/forecast.js";
 import { SCHEMES, schemeAnchors } from "./core/colors.js";
 import {
   getLocations, getLocation, saveLocation, newLocationId,
-  getSettings, setSettings,
+  getSettings, setSettings, getGlobalPrefs, setGlobalPrefs,
 } from "./storage.js";
+import { mergePrefs } from "./core/prefs.js";
+import { buildPrefsForm } from "./ui/prefsform.js";
 import { renderDayView, renderLocationSummary } from "./ui/views.js";
 import { renderSettings } from "./ui/settings.js";
 
@@ -20,7 +22,9 @@ async function forecastFor(location) {
   if (!forecastCache.has(location.id)) {
     forecastCache.set(
       location.id,
-      buildForecast(location).catch((err) => err)
+      buildForecast(location, { globalPrefs: getGlobalPrefs() }).catch(
+        (err) => err
+      )
     );
   }
   return forecastCache.get(location.id);
@@ -28,6 +32,10 @@ async function forecastFor(location) {
 
 function invalidate(id) {
   forecastCache.delete(id);
+}
+
+function invalidateAll() {
+  forecastCache.clear();
 }
 
 function el(tag, className, text) {
@@ -248,12 +256,14 @@ async function showAddLocation() {
   });
 }
 
-// ---- global settings (color scheme) ----
+// ---- global settings ----
 
 function showAppSettings() {
   const page = el("div", "settings-view");
-  page.appendChild(el("h1", "page-title", "App settings"));
-  const form = el("div", "settings-form");
+  page.appendChild(el("h1", "page-title", "Settings"));
+  const form = el("form", "settings-form");
+
+  // Color scheme applies immediately, no save needed.
   const sec = el("section", "settings-section");
   sec.appendChild(el("h3", null, "Color scheme"));
   const current = getSettings().scheme;
@@ -278,18 +288,44 @@ function showAppSettings() {
   }
   form.appendChild(sec);
 
-  const maintainer = el("section", "settings-section");
-  maintainer.appendChild(el("h3", null, "Site defaults"));
-  const hint = el("p", "hint");
-  hint.append(
-    "The locations and filters everyone sees ship in config.json. Use the "
+  // The visitor's own thresholds for every location at once. Saved as a
+  // layer over the shipped defaults; a location's own settings page
+  // still overrides these for that spot.
+  const intro = el("section", "settings-section");
+  intro.appendChild(el("h3", null, "Your conditions"));
+  intro.appendChild(
+    el(
+      "p",
+      "hint",
+      "These thresholds apply to every location. A location's own " +
+        "preferences page still overrides them for that spot."
+    )
   );
-  const editLink = el("a", null, "config editor");
-  editLink.href = "edit.html";
-  hint.appendChild(editLink);
-  hint.append(" to change them, then commit the file to the repo.");
-  maintainer.appendChild(hint);
-  form.appendChild(maintainer);
+  form.appendChild(intro);
+  const prefsForm = buildPrefsForm(mergePrefs(getGlobalPrefs()));
+  form.appendChild(prefsForm.element);
+
+  const actions = el("div", "settings-actions");
+  const saveBtn = el("button", "btn btn-primary", "Save for all locations");
+  saveBtn.type = "submit";
+  const resetBtn = el("button", "btn", "Reset to site defaults");
+  resetBtn.type = "button";
+  actions.appendChild(saveBtn);
+  actions.appendChild(resetBtn);
+  form.appendChild(actions);
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    setGlobalPrefs(prefsForm.read());
+    invalidateAll();
+    location.hash = "#/";
+  });
+  resetBtn.addEventListener("click", () => {
+    if (!confirm("Discard your saved thresholds and go back to the site defaults?")) return;
+    setGlobalPrefs(null);
+    invalidateAll();
+    location.hash = "#/";
+  });
 
   page.appendChild(form);
   setMain(page);

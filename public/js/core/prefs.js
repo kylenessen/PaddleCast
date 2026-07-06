@@ -161,9 +161,13 @@ function migrateStored(stored) {
 }
 
 // Deep-merge stored prefs over defaults so older saved locations pick
-// up new fields without breaking.
-export function mergePrefs(stored) {
-  const base = defaultPrefs();
+// up new fields without breaking. `globalPrefs` is the visitor's own
+// default thresholds (see storage.js); it layers between the shipped
+// defaults and the per-location overrides, and is passed in rather than
+// imported so this module stays usable outside the browser.
+export function mergePrefs(stored, globalPrefs) {
+  let base = defaultPrefs();
+  if (globalPrefs) base = overlay(base, migrateStored(globalPrefs));
   if (!stored) return base;
   return overlay(base, migrateStored(stored));
 }
