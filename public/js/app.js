@@ -102,7 +102,7 @@ async function showHome() {
 
   const page = el("div", "home");
   const header = el("header", "home-header");
-  header.appendChild(el("h1", "brand-title", "🛶 PaddleCast"));
+  header.appendChild(el("h1", "brand-title", "PaddleCast"));
   page.appendChild(header);
 
   const holder = el("div");
