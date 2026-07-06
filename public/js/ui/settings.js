@@ -1,6 +1,6 @@
 import { mergePrefs } from "../core/prefs.js";
 import { buildPrefsForm, field, numberInput } from "./prefsform.js";
-import { saveLocation, deleteLocation } from "../storage.js";
+import { saveLocation } from "../storage.js";
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -18,7 +18,9 @@ function section(title, hint) {
 
 // Settings form for a location. `location` may be freshly created (from
 // the add-location map) or existing. Calls onSaved(location) after save.
-export function renderSettings(location, { onSaved, onDeleted }) {
+// There is no delete here: adding locations is turned off in the UI, so
+// a deleted spot would be gone for good.
+export function renderSettings(location, { onSaved }) {
   const prefs = mergePrefs(location.prefs);
   const root = el("div", "settings-view");
   root.appendChild(el("h1", "loc-title", `${location.name} — Settings`));
@@ -48,10 +50,7 @@ export function renderSettings(location, { onSaved, onDeleted }) {
   const actions = el("div", "settings-actions");
   const saveBtn = el("button", "btn btn-primary", "Save");
   saveBtn.type = "submit";
-  const deleteBtn = el("button", "btn btn-danger", "Delete location");
-  deleteBtn.type = "button";
   actions.appendChild(saveBtn);
-  actions.appendChild(deleteBtn);
   form.appendChild(actions);
 
   form.addEventListener("submit", (e) => {
@@ -65,13 +64,6 @@ export function renderSettings(location, { onSaved, onDeleted }) {
     };
     saveLocation(updated);
     onSaved(updated);
-  });
-
-  deleteBtn.addEventListener("click", () => {
-    if (confirm(`Delete ${location.name}?`)) {
-      deleteLocation(location.id);
-      onDeleted();
-    }
   });
 
   root.appendChild(form);

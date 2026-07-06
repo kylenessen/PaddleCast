@@ -77,9 +77,9 @@ async function showHome() {
     empty.appendChild(
       el("p", null, "Forecasts for the places you paddle, judged by your own thresholds.")
     );
-    const add = el("a", "btn btn-primary", "Add your first location");
-    add.href = "#/add";
-    empty.appendChild(add);
+    empty.appendChild(
+      el("p", null, "No locations are available right now. Try reloading.")
+    );
     setMain(empty);
     return;
   }
@@ -162,11 +162,6 @@ function showSettings(id) {
         invalidate(updated.id);
         renderSidebar();
         location.hash = `#/loc/${updated.id}`;
-      },
-      onDeleted: () => {
-        invalidate(id);
-        renderSidebar();
-        location.hash = "#/";
       },
     })
   );
