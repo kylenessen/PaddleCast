@@ -91,10 +91,10 @@ function evalSwell(hour, prefs) {
 
 // hour: merged hourly record from core/forecast.js.
 // Returns { metrics: { wind, temp, conditions, tide?, swell? }, overall,
-// score }. `overall` is the worst metric status. Any bad metric pins the
-// hour's score to 1 (full red). Otherwise the score is the mean ramp
-// position of the good/marginal metrics, so two goods and two marginals
-// land exactly halfway between green and yellow.
+// score }. `overall` is the worst metric status. `score` is the mean ramp
+// position of all metrics regardless of how many there are: all good is 0
+// (green), half good is 0.5 (yellow), a quarter good is 0.75 (between
+// yellow and red), none good is 1 (red). Marginal counts as half a good.
 export function evaluateHour(hour, prefs) {
   const metrics = {
     wind: evalWind(hour, prefs),
@@ -105,8 +105,7 @@ export function evaluateHour(hour, prefs) {
   if (prefs.swell.enabled) metrics.swell = evalSwell(hour, prefs);
   const statuses = Object.values(metrics).map((m) => m.status);
   const overall = worst(statuses);
-  const score = overall === "bad"
-    ? 1
-    : statuses.reduce((sum, s) => sum + STATUS_SCORE[s], 0) / statuses.length;
+  const score =
+    statuses.reduce((sum, s) => sum + STATUS_SCORE[s], 0) / statuses.length;
   return { metrics, overall, score };
 }
