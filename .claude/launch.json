@@ -8,6 +8,13 @@
       "port": 8788
     },
     {
+      "name": "paddlecast-alt",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "-d", "public", "8789"],
+      "port": 8789,
+      "autoPort": false
+    },
+    {
       "name": "paddlecast-editor",
       "runtimeExecutable": "node",
       "runtimeArgs": ["tools/edit-server.mjs"],
