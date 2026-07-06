@@ -22,12 +22,16 @@ async function getJson(url) {
 }
 
 // Returns { utcOffsetSeconds, timezone, hours: Map<localIso, record> }
-// where record has tempF, windMph, windDirDeg, weatherCode.
+// where record has tempF, windMph, windDirDeg, weatherCode, and the
+// three cloud-cover layers (percent) that feed the sunrise/sunset
+// color prediction in core/glow.js.
 export async function fetchWeather(lat, lon, days = 7) {
   const params = new URLSearchParams({
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
-    hourly: "temperature_2m,weather_code,wind_speed_10m,wind_direction_10m",
+    hourly:
+      "temperature_2m,weather_code,wind_speed_10m,wind_direction_10m," +
+      "cloud_cover_low,cloud_cover_mid,cloud_cover_high",
     temperature_unit: "fahrenheit",
     wind_speed_unit: "mph",
     forecast_days: String(days),
@@ -42,6 +46,9 @@ export async function fetchWeather(lat, lon, days = 7) {
       weatherCode: h.weather_code[i],
       windMph: h.wind_speed_10m[i],
       windDirDeg: h.wind_direction_10m[i],
+      cloudLowPct: h.cloud_cover_low?.[i] ?? null,
+      cloudMidPct: h.cloud_cover_mid?.[i] ?? null,
+      cloudHighPct: h.cloud_cover_high?.[i] ?? null,
     });
   }
   return {

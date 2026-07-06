@@ -1,4 +1,5 @@
 import { sunTimes } from "./sun.js";
+import { glowQuality } from "./glow.js";
 import { evaluateHour } from "./evaluate.js";
 import { mergePrefs } from "./prefs.js";
 import { fetchWeather, fetchMarine } from "../providers/openmeteo.js";
@@ -91,6 +92,20 @@ export async function buildForecast(location, options = {}) {
         swellFt: marine.get(record.iso)?.swellFt ?? null,
         windWaveFt: marine.get(record.iso)?.windWaveFt ?? null,
       };
+      // Tag the hour that contains sunrise or sunset with the event and
+      // its predicted color quality, judged from this hour's cloud
+      // layers (see core/glow.js).
+      for (const [kind, utc] of [["sunrise", sun.sunrise], ["sunset", sun.sunset]]) {
+        if (utc == null) continue;
+        const eventLocal = utc + offset * 1000;
+        if (eventLocal >= start && eventLocal < end) {
+          hour.sunEvent = {
+            kind,
+            time: localIsoFromUtc(utc, offset),
+            quality: glowQuality(record),
+          };
+        }
+      }
       hours.push({ ...hour, ...evaluateHour(hour, prefs) });
     }
     if (hours.length === 0) continue;
