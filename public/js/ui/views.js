@@ -39,6 +39,25 @@ function fmtClock(iso) {
 
 // ---- hourly day view ----
 
+// A slim full-width row marking the sunrise or sunset that falls inside
+// the hour above it, with the predicted color quality from the cloud
+// layers (core/glow.js). Hovering shows the layer breakdown.
+function sunEventRow(event, columns) {
+  const tr = el("tr", "dt-sun-row");
+  const td = el("td", "dt-sun");
+  td.colSpan = columns;
+  const icon = event.kind === "sunrise" ? "🌅" : "🌇";
+  const name = event.kind === "sunrise" ? "Sunrise" : "Sunset";
+  let text = `${icon} ${name} ${fmtClock(event.time)}`;
+  if (event.quality) {
+    text += ` · ${event.quality.label}`;
+    td.title = event.quality.detail;
+  }
+  td.textContent = text;
+  tr.appendChild(td);
+  return tr;
+}
+
 export function renderDayView(forecast, dayIndex, { onPickDay }) {
   const scheme = getSettings().scheme;
   const root = el("div", "day-view");
@@ -139,6 +158,9 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
       tr.appendChild(td);
     }
     tbody.appendChild(tr);
+    if (hour.sunEvent) {
+      tbody.appendChild(sunEventRow(hour.sunEvent, keys.length + 1));
+    }
   }
   table.appendChild(tbody);
   root.appendChild(table);
