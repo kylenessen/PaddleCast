@@ -76,8 +76,8 @@ export function renderSettings(location, { onSaved, onDeleted }) {
   nameInput.type = "text";
   nameInput.value = location.name;
   nameInput.required = true;
-  const latInput = numberInput(location.lat, { step: 0.0001 });
-  const lonInput = numberInput(location.lon, { step: 0.0001 });
+  const latInput = numberInput(location.lat, { step: "any" });
+  const lonInput = numberInput(location.lon, { step: "any" });
   basics.appendChild(field("Name", nameInput));
   const coordRow = el("div", "field-row");
   coordRow.appendChild(field("Latitude", latInput));

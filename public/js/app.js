@@ -54,6 +54,9 @@ document.getElementById("sidebar-toggle").addEventListener("click", () => {
   sidebar.classList.toggle("collapsed");
 });
 
+// On phone-width screens start collapsed so the forecast gets the room.
+if (window.innerWidth < 720) sidebar.classList.add("collapsed");
+
 // ---- views ----
 
 function setMain(node) {
@@ -205,7 +208,11 @@ async function showAddLocation() {
   let marker = null;
   let picked = null;
   map.on("click", (e) => {
-    picked = { lat: e.latlng.lat, lon: e.latlng.lng };
+    // 5 decimal places is about a meter, plenty for a launch spot.
+    picked = {
+      lat: Number(e.latlng.lat.toFixed(5)),
+      lon: Number(e.latlng.lng.toFixed(5)),
+    };
     coords.textContent = `${picked.lat.toFixed(4)}, ${picked.lon.toFixed(4)}`;
     if (marker) marker.setLatLng(e.latlng);
     else marker = L.marker(e.latlng).addTo(map);
