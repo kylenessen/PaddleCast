@@ -138,9 +138,10 @@ export function renderDayView(forecast, dayIndex, { onPickDay }) {
 // ---- week summary ----
 
 // A day's color signature: one solid stripe per hour, no blending between
-// hours. An hour with any bad metric is the full bad color; otherwise its
-// good/marginal mix picks the shade (two goods and two marginals sit
-// exactly halfway between green and yellow).
+// hours. An hour with any bad metric is the full bad color; otherwise the
+// fraction of good metrics picks the spot on the full ramp (all good is
+// the good color, half good exactly the marginal color, a quarter good
+// between marginal and bad).
 function dayColorBar(day, scheme) {
   const bar = el("span", "day-bar");
   const n = day.hours.length;
