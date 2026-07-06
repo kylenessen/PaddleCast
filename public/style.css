@@ -185,22 +185,32 @@ body {
 
 .hour-time { width: 48px; font-weight: 600; font-size: 14px; }
 
-.hour-dots { display: flex; gap: 18px; flex-wrap: wrap; }
+/* Segmented metric bar: equal solid pills filling the row, values
+   always visible. min-width forces a wrap to a second row on narrow
+   screens instead of squeezing the text. */
+.metric-bar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 
-.metric-cell { display: flex; align-items: center; gap: 6px; }
-
-.metric-dot {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+.metric-seg {
+  flex: 1 1 0;
+  min-width: 108px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  white-space: nowrap;
   cursor: default;
-  flex-shrink: 0;
 }
 .metric-icon { font-size: 13px; }
-.metric-value { font-size: 13px; color: var(--muted); }
+.metric-seg-value { overflow: hidden; text-overflow: ellipsis; }
 
 .tooltip {
   position: absolute;
@@ -308,6 +318,8 @@ body {
 @media (max-width: 720px) {
   #main { padding: 16px; }
   #sidebar { position: sticky; top: 0; height: 100vh; }
-  .metric-value { display: none; }
-  .hour-dots { gap: 10px; }
+  /* Give the metric bar the row's full width so two pills fit per
+     line instead of a tall single column. */
+  .hour-row { flex-wrap: wrap; row-gap: 6px; }
+  .metric-bar { flex-basis: 100%; }
 }
