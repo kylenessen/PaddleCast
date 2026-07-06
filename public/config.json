@@ -43,7 +43,10 @@
       "lat": 35.32676,
       "lon": -120.84213,
       "prefs": {
-        "tide": { "enabled": true, "stationId": "9412110", "minFt": 2.5 }
+        "tide": {
+          "enabled": true,
+          "stationId": "9412110"
+        }
       }
     },
     {
@@ -52,7 +55,10 @@
       "lat": 35.35921,
       "lon": -120.8501,
       "prefs": {
-        "tide": { "enabled": true, "stationId": "9412110", "minFt": 2.5 }
+        "tide": {
+          "enabled": true,
+          "stationId": "9412110"
+        }
       }
     },
     {
@@ -61,7 +67,9 @@
       "lat": 35.4479,
       "lon": -120.906,
       "prefs": {
-        "waves": { "enabled": true }
+        "waves": {
+          "enabled": true
+        }
       }
     },
     {
@@ -70,7 +78,9 @@
       "lat": 35.1791,
       "lon": -120.7318,
       "prefs": {
-        "waves": { "enabled": true }
+        "waves": {
+          "enabled": true
+        }
       }
     }
   ]

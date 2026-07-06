@@ -1,25 +1,42 @@
-// Maintainer editor for config.json. Loads the shipped config, exposes
-// the default filters and locations as a form, and produces the updated
-// JSON to copy or download. It never writes anything itself; the commit
-// is the save button.
+// Maintainer editor for config.json. Loads the shipped config, lets you
+// manage locations on a map with the same preference controls the app
+// uses, edit the global default filters, and save straight back to
+// public/config.json through the local editor server (tools/edit-server.mjs).
+//
+// Save posts to /__save-config, which only exists when the site is
+// served by that editor server. Under a plain static server or the
+// deployed site there is nothing to write to, and Save reports that.
 
-import { BEAUFORT } from "./core/beaufort.js";
-import { CONDITION_CATEGORIES } from "./core/wmo.js";
+import { buildPrefsForm, field, numberInput } from "./ui/prefsform.js";
 
 const editor = document.getElementById("editor");
+
+// Full-prefs fallback shape, so a config.json that omits a section (or a
+// key) still gives every control something to bind to.
+const SHAPE = {
+  wind: { goodMax: 1, max: 3, protectedSectors: [], protectedMax: 4 },
+  temp: { min: 55, max: 85, sweetMin: 62, sweetMax: 78 },
+  conditions: {
+    sunny: "good", partly: "good", overcast: "marginal", fog: "marginal",
+    drizzle: "bad", rain: "bad", storm: "bad",
+  },
+  tide: { enabled: false, stationId: "", minFt: 2.5, marginFt: 0.5 },
+  waves: {
+    enabled: false, goodMaxFt: 2, maxFt: 4, minPeriodS: 8,
+    protectedSectors: [], protectedMaxFt: 6,
+  },
+};
+
+let config;
+let map;
+let defaultsForm;
+const handles = []; // { loc, marker, coordsEl, prefsForm, card, title }
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text != null) node.textContent = text;
   return node;
-}
-
-function field(labelText, input) {
-  const wrap = el("label", "field");
-  wrap.appendChild(el("span", "field-label", labelText));
-  wrap.appendChild(input);
-  return wrap;
 }
 
 function section(title, hint) {
@@ -29,254 +46,243 @@ function section(title, hint) {
   return s;
 }
 
-// Reads obj[key] into an input and writes changes back, then refreshes
-// the JSON preview. kind: "number", "text", or "select".
-function bind(input, obj, key, kind = "number") {
-  input.value = obj[key];
-  input.addEventListener("input", () => {
-    if (kind === "number") {
-      const n = Number(input.value);
-      if (Number.isFinite(n)) obj[key] = n;
-    } else {
-      obj[key] = input.value;
+function normalizeDefaults(d) {
+  const out = d ?? {};
+  for (const [key, base] of Object.entries(SHAPE)) {
+    out[key] = { ...base, ...out[key] };
+  }
+  return out;
+}
+
+// Full prefs for display: a location's partial override laid over the
+// current defaults, so every control shows its effective value.
+function mergeOver(defaults, override) {
+  const out = structuredClone(defaults);
+  if (override) {
+    for (const s of Object.keys(out)) {
+      if (override[s] && typeof override[s] === "object") {
+        out[s] = { ...out[s], ...override[s] };
+      }
     }
-    refresh();
-  });
-  return input;
-}
-
-function numberInput(obj, key, step = 1) {
-  const input = el("input");
-  input.type = "number";
-  input.step = step;
-  return bind(input, obj, key, "number");
-}
-
-function beaufortSelect(obj, key) {
-  const select = el("select");
-  for (const b of BEAUFORT) {
-    const opt = el("option", null, `${b.level} — ${b.name}`);
-    opt.value = b.level;
-    select.appendChild(opt);
   }
-  return bind(select, obj, key, "number");
+  return out;
 }
 
-function toleranceSelect(obj, key) {
-  const select = el("select");
-  for (const [v, label] of [
-    ["good", "Good"],
-    ["marginal", "Tolerable"],
-    ["bad", "Not for me"],
-  ]) {
-    select.appendChild(Object.assign(el("option", null, label), { value: v }));
+// Minimal override for storage: only the keys that differ from the
+// defaults, so config.json stays small and diffable and locations keep
+// inheriting future default changes.
+function diffFrom(defaults, full) {
+  const out = {};
+  for (const s of Object.keys(full)) {
+    const changed = {};
+    for (const k of Object.keys(full[s])) {
+      if (JSON.stringify(full[s][k]) !== JSON.stringify(defaults[s]?.[k])) {
+        changed[k] = full[s][k];
+      }
+    }
+    if (Object.keys(changed).length) out[s] = changed;
   }
-  return bind(select, obj, key, "select");
+  return out;
 }
 
-// ---- defaults form ----
+function slugify(name) {
+  return name.toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "spot";
+}
 
-function renderDefaults(defaults) {
-  const holder = el("div");
+function round5(n) {
+  return Number(Number(n).toFixed(5));
+}
 
-  const wind = section(
-    "Wind (Beaufort)",
-    "At or below good shows green, up to max shows yellow, above is red."
+function coordsText(loc) {
+  return `${round5(loc.lat)}, ${round5(loc.lon)}`;
+}
+
+// ---- global defaults ----
+
+function renderDefaults() {
+  const details = el("details", "defaults-toggle");
+  details.open = true;
+  details.appendChild(el("summary", null, "Global default filters"));
+  const hint = el(
+    "p", "hint",
+    "The starting thresholds for every spot. A location only stores the values it overrides, so changing a default here updates everywhere that hasn't been customized."
   );
-  const windRow = el("div", "field-row");
-  windRow.appendChild(field("Good up to", beaufortSelect(defaults.wind, "goodMax")));
-  windRow.appendChild(field("Max tolerated", beaufortSelect(defaults.wind, "max")));
-  windRow.appendChild(
-    field("Max from protected directions", beaufortSelect(defaults.wind, "protectedMax"))
-  );
-  wind.appendChild(windRow);
-  holder.appendChild(wind);
-
-  const temp = section("Temperature (°F)");
-  const tempRow = el("div", "field-row");
-  tempRow.appendChild(field("Min", numberInput(defaults.temp, "min")));
-  tempRow.appendChild(field("Sweet spot low", numberInput(defaults.temp, "sweetMin")));
-  tempRow.appendChild(field("Sweet spot high", numberInput(defaults.temp, "sweetMax")));
-  tempRow.appendChild(field("Max", numberInput(defaults.temp, "max")));
-  temp.appendChild(tempRow);
-  holder.appendChild(temp);
-
-  const cond = section("Sky conditions");
-  const grid = el("div", "cond-grid");
-  for (const cat of CONDITION_CATEGORIES) {
-    grid.appendChild(field(cat.label, toleranceSelect(defaults.conditions, cat.id)));
-  }
-  cond.appendChild(grid);
-  holder.appendChild(cond);
-
-  const tide = section("Tide (ft MLLW)", "Applied where a location enables tide.");
-  const tideRow = el("div", "field-row");
-  tideRow.appendChild(field("Minimum tide", numberInput(defaults.tide, "minFt", 0.1)));
-  tideRow.appendChild(field("Marginal buffer", numberInput(defaults.tide, "marginFt", 0.1)));
-  tide.appendChild(tideRow);
-  holder.appendChild(tide);
-
-  const waves = section(
-    "Waves (ft)",
-    "Total wave height, swell and wind waves combined. Applied where a location enables waves."
-  );
-  const wavesRow = el("div", "field-row");
-  wavesRow.appendChild(field("Good up to", numberInput(defaults.waves, "goodMaxFt", 0.5)));
-  wavesRow.appendChild(field("Max tolerated", numberInput(defaults.waves, "maxFt", 0.5)));
-  wavesRow.appendChild(field("Min period (s)", numberInput(defaults.waves, "minPeriodS")));
-  wavesRow.appendChild(
-    field("Max from protected directions", numberInput(defaults.waves, "protectedMaxFt", 0.5))
-  );
-  waves.appendChild(wavesRow);
-  holder.appendChild(waves);
-
-  return holder;
+  details.appendChild(hint);
+  defaultsForm = buildPrefsForm(config.defaults);
+  details.appendChild(defaultsForm.element);
+  return details;
 }
 
 // ---- locations ----
 
-function renderLocations(config) {
-  const holder = el("div");
-  const head = section(
-    "Locations",
-    "Order here is sidebar order. Ids are stable slugs used in shared links, so avoid renaming them. " +
-      "Per-location prefs are partial overrides of the defaults above, as JSON " +
-      '(e.g. {"tide": {"enabled": true, "stationId": "9412110"}} or {"waves": {"enabled": true}}).'
-  );
-  const list = el("div");
-  head.appendChild(list);
+function addLocationRow(loc, listEl) {
+  const marker = L.marker([loc.lat, loc.lon], { draggable: true });
+  if (loc.name) marker.bindTooltip(loc.name, { permanent: false });
+  marker.addTo(map);
 
-  function renderList() {
-    list.textContent = "";
-    config.locations.forEach((loc, i) => {
-      list.appendChild(locationCard(config, loc, i, renderList));
-    });
-  }
-  renderList();
+  const card = el("div", "loc-card");
+  const head = el("div", "loc-card-head");
+  const title = el("h3", null, loc.name || "(unnamed)");
+  head.appendChild(title);
+  const locateBtn = el("button", "btn btn-small", "Show on map");
+  locateBtn.type = "button";
+  const delBtn = el("button", "btn btn-danger btn-small", "Delete");
+  delBtn.type = "button";
+  head.append(locateBtn, delBtn);
+  card.appendChild(head);
 
-  const add = el("button", "btn", "+ Add location");
-  add.type = "button";
-  add.addEventListener("click", () => {
-    config.locations.push({ id: "", name: "", lat: 0, lon: 0, prefs: {} });
-    renderList();
-    refresh();
-  });
-  head.appendChild(add);
-  holder.appendChild(head);
-  return holder;
-}
-
-function locationCard(config, loc, index, rerenderList) {
-  const card = el("div", "settings-section");
-
-  const headRow = el("div", "loc-card-head");
-  headRow.appendChild(el("h4", null, loc.name || "(unnamed)"));
-  const up = el("button", "btn btn-small", "↑");
-  const down = el("button", "btn btn-small", "↓");
-  const remove = el("button", "btn btn-danger btn-small", "Remove");
-  for (const b of [up, down, remove]) b.type = "button";
-  up.disabled = index === 0;
-  down.disabled = index === config.locations.length - 1;
-  up.addEventListener("click", () => {
-    config.locations.splice(index - 1, 0, config.locations.splice(index, 1)[0]);
-    rerenderList();
-    refresh();
-  });
-  down.addEventListener("click", () => {
-    config.locations.splice(index + 1, 0, config.locations.splice(index, 1)[0]);
-    rerenderList();
-    refresh();
-  });
-  remove.addEventListener("click", () => {
-    config.locations.splice(index, 1);
-    rerenderList();
-    refresh();
-  });
-  headRow.append(up, down, remove);
-  card.appendChild(headRow);
-
-  const row1 = el("div", "field-row");
-  const nameInput = bind(el("input"), loc, "name", "text");
+  const nameRow = el("div", "field-row");
+  const nameInput = el("input");
   nameInput.type = "text";
-  nameInput.addEventListener("input", () => {
-    headRow.querySelector("h4").textContent = loc.name || "(unnamed)";
-  });
-  const idInput = bind(el("input"), loc, "id", "text");
+  nameInput.value = loc.name;
+  const idInput = el("input");
   idInput.type = "text";
-  row1.appendChild(field("Name", nameInput));
-  row1.appendChild(field("Id (slug)", idInput));
-  card.appendChild(row1);
-
-  const row2 = el("div", "field-row");
-  row2.appendChild(field("Latitude", numberInput(loc, "lat", "any")));
-  row2.appendChild(field("Longitude", numberInput(loc, "lon", "any")));
-  card.appendChild(row2);
-
-  const prefsArea = el("textarea", "prefs-json");
-  prefsArea.value = JSON.stringify(loc.prefs ?? {}, null, 2);
-  const error = el("p", "json-error", "");
-  prefsArea.addEventListener("input", () => {
-    try {
-      loc.prefs = JSON.parse(prefsArea.value);
-      prefsArea.classList.remove("invalid");
-      error.textContent = "";
-      refresh();
-    } catch (err) {
-      prefsArea.classList.add("invalid");
-      error.textContent = `Not valid JSON, keeping the last good value. ${err.message}`;
+  idInput.value = loc.id;
+  let idEdited = Boolean(loc.id);
+  idInput.addEventListener("input", () => {
+    idEdited = true;
+    loc.id = idInput.value;
+  });
+  nameInput.addEventListener("input", () => {
+    loc.name = nameInput.value;
+    title.textContent = loc.name || "(unnamed)";
+    marker.unbindTooltip();
+    if (loc.name) marker.bindTooltip(loc.name);
+    // Keep the slug tracking the name until the id is edited directly.
+    if (!idEdited) {
+      loc.id = slugify(loc.name);
+      idInput.value = loc.id;
     }
   });
-  card.appendChild(field("Prefs overrides (JSON)", prefsArea));
-  card.appendChild(error);
-  return card;
-}
+  nameRow.append(field("Name", nameInput), field("Id (slug)", idInput));
+  card.appendChild(nameRow);
 
-// ---- output pane ----
+  const coordsEl = el("p", "loc-coords", coordsText(loc));
+  card.appendChild(coordsEl);
 
-let config;
-let output;
+  const details = el("details", "loc-prefs");
+  details.appendChild(el("summary", null, "Filters for this spot"));
+  const prefsForm = buildPrefsForm(mergeOver(config.defaults, loc.prefs));
+  details.appendChild(prefsForm.element);
+  card.appendChild(details);
 
-function configJson() {
-  return JSON.stringify(config, null, 2) + "\n";
-}
+  const handle = { loc, marker, coordsEl, prefsForm, card, title };
+  handles.push(handle);
+  listEl.appendChild(card);
 
-function refresh() {
-  if (output) output.value = configJson();
-}
-
-function renderOutput() {
-  const pane = el("div", "editor-output");
-  pane.appendChild(el("h3", null, "config.json"));
-
-  const actions = el("div", "editor-actions");
-  const download = el("button", "btn btn-primary", "Download config.json");
-  download.type = "button";
-  download.addEventListener("click", () => {
-    const blob = new Blob([configJson()], { type: "application/json" });
-    const a = el("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "config.json";
-    a.click();
-    URL.revokeObjectURL(a.href);
+  marker.on("drag", () => {
+    const p = marker.getLatLng();
+    loc.lat = p.lat;
+    loc.lon = p.lng;
+    coordsEl.textContent = coordsText(loc);
   });
-  const copy = el("button", "btn", "Copy");
-  copy.type = "button";
-  copy.addEventListener("click", async () => {
-    await navigator.clipboard.writeText(configJson());
-    copy.textContent = "Copied ✓";
-    setTimeout(() => (copy.textContent = "Copy"), 1500);
+  locateBtn.addEventListener("click", () => {
+    map.setView(marker.getLatLng(), Math.max(map.getZoom(), 12));
+    marker.openTooltip();
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
   });
-  actions.append(download, copy);
-  pane.appendChild(actions);
+  delBtn.addEventListener("click", () => {
+    if (!confirm(`Delete ${loc.name || "this location"}?`)) return;
+    map.removeLayer(marker);
+    card.remove();
+    handles.splice(handles.indexOf(handle), 1);
+  });
 
-  output = el("textarea");
-  output.readOnly = true;
-  output.value = configJson();
-  pane.appendChild(output);
-  pane.appendChild(
-    el("p", "ok-note", "Replace public/config.json with this, then commit to main.")
+  return handle;
+}
+
+function renderLocations() {
+  const holder = section(
+    "Locations",
+    "Drag a marker to move a launch, or click an empty spot on the map to add one. Order here is the sidebar order on the site. Ids are stable slugs used in shared links, so avoid changing an existing one."
   );
-  return pane;
+
+  const listEl = el("div");
+  const addBtn = el("button", "btn", "+ Add location at map center");
+  addBtn.type = "button";
+  addBtn.addEventListener("click", () => {
+    const c = map.getCenter();
+    const loc = { id: "", name: "", lat: round5(c.lat), lon: round5(c.lng), prefs: {} };
+    const handle = addLocationRow(loc, listEl);
+    handle.card.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  holder.appendChild(listEl);
+  holder.appendChild(addBtn);
+  return { holder, listEl };
+}
+
+// ---- save bar ----
+
+function renderSaveBar() {
+  const bar = el("div", "save-bar");
+  const saveBtn = el("button", "btn btn-primary", "Save to config.json");
+  saveBtn.type = "button";
+  const status = el("span", "save-status");
+  bar.append(saveBtn, status);
+
+  saveBtn.addEventListener("click", async () => {
+    status.className = "save-status";
+    const error = validateAndCollect();
+    if (error) {
+      status.classList.add("err");
+      status.textContent = `⚠ ${error}`;
+      return;
+    }
+    saveBtn.disabled = true;
+    status.textContent = "Saving…";
+    try {
+      const res = await fetch("/__save-config", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(config),
+      });
+      if (res.ok) {
+        status.classList.add("ok");
+        status.textContent = "✓ Saved to public/config.json. Commit and push to deploy.";
+      } else {
+        status.classList.add("err");
+        status.textContent = `⚠ Save failed: ${await res.text()}`;
+      }
+    } catch {
+      status.classList.add("err");
+      status.textContent =
+        "⚠ No editor server. Run: node tools/edit-server.mjs, then open it there.";
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  return bar;
+}
+
+// Reads every form into `config`, returning an error string or null.
+function validateAndCollect() {
+  config.defaults = defaultsForm.read();
+  const locations = [];
+  const seen = new Set();
+  for (const h of handles) {
+    const id = (h.loc.id || "").trim();
+    const name = (h.loc.name || "").trim();
+    if (!name) return "Every location needs a name.";
+    if (!id) return `"${name}" needs an id.`;
+    if (!/^[a-z0-9-]+$/.test(id)) {
+      return `Id "${id}" must be lowercase letters, numbers, and hyphens.`;
+    }
+    if (seen.has(id)) return `Duplicate id "${id}". Ids must be unique.`;
+    seen.add(id);
+    locations.push({
+      id,
+      name,
+      lat: round5(h.loc.lat),
+      lon: round5(h.loc.lon),
+      prefs: diffFrom(config.defaults, h.prefsForm.read()),
+    });
+  }
+  config.locations = locations;
+  return null;
 }
 
 // ---- boot ----
@@ -285,33 +291,38 @@ async function boot() {
   const res = await fetch("config.json", { cache: "no-cache" });
   if (!res.ok) throw new Error(`config.json failed to load (${res.status})`);
   config = await res.json();
-  config.defaults ??= {};
-  config.locations ??= [];
-  // The form binds straight into these objects, so make sure every
-  // section exists even if the file omitted it.
-  const shape = {
-    wind: { goodMax: 1, max: 3, protectedSectors: [], protectedMax: 4 },
-    temp: { min: 55, max: 85, sweetMin: 62, sweetMax: 78 },
-    conditions: {
-      sunny: "good", partly: "good", overcast: "marginal", fog: "marginal",
-      drizzle: "bad", rain: "bad", storm: "bad",
-    },
-    tide: { enabled: false, stationId: "", minFt: 2.5, marginFt: 0.5 },
-    waves: {
-      enabled: false, goodMaxFt: 2, maxFt: 4, minPeriodS: 8,
-      protectedSectors: [], protectedMaxFt: 6,
-    },
-  };
-  for (const [key, defaults] of Object.entries(shape)) {
-    config.defaults[key] = { ...defaults, ...config.defaults[key] };
-  }
+  config.defaults = normalizeDefaults(config.defaults);
+  config.locations = Array.isArray(config.locations) ? config.locations : [];
 
   editor.textContent = "";
-  const form = el("div", "editor-form");
-  form.appendChild(renderDefaults(config.defaults));
-  form.appendChild(renderLocations(config));
-  editor.appendChild(form);
-  editor.appendChild(renderOutput());
+
+  const mapDiv = el("div", "edit-map");
+  editor.appendChild(mapDiv);
+  editor.appendChild(renderDefaults());
+  const { holder, listEl } = renderLocations();
+  editor.appendChild(holder);
+  document.body.appendChild(renderSaveBar());
+
+  map = L.map(mapDiv);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap contributors",
+  }).addTo(map);
+
+  for (const loc of config.locations) addLocationRow(loc, listEl);
+
+  // Frame the markers once the container has its real size. Fitting
+  // before layout settles makes Leaflet zoom to the whole world.
+  const fit = () => {
+    map.invalidateSize();
+    if (handles.length) {
+      const group = L.featureGroup(handles.map((h) => h.marker));
+      map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 13 });
+    } else {
+      map.setView([35.34, -120.83], 10);
+    }
+  };
+  map.setView([35.34, -120.83], 10);
+  requestAnimationFrame(fit);
 }
 
 boot().catch((err) => {
