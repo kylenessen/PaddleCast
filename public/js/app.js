@@ -380,7 +380,7 @@ function route() {
 // The version baked into this file. config.json carries the matching
 // deploy stamp and is always fetched with no-cache, so a client running
 // old cached JS sees a newer number there and reloads itself once.
-const APP_VERSION = 6;
+const APP_VERSION = 7;
 
 function reloadIfStaleBuild() {
   const deployed = getConfigVersion();
