@@ -18,18 +18,41 @@ function localIsoFromUtc(utcMs, offsetSeconds) {
 // Build the full evaluated forecast for one location.
 //
 // location: { name, lat, lon, prefs } (prefs may be partial; defaults fill in)
-// options: { days } capped to 7.
+// options: { days } capped to 7, and optionally fetchWind(lat, lon, days),
+// an async source of better hourly wind ([{ epoch, windMph, windDirDeg }],
+// epoch in UTC seconds, or null when unavailable). When it delivers,
+// its values replace Open-Meteo's wind hour by hour.
 //
-// Returns { location, timezone, generatedAt, warnings, days } where each
-// day has { date, sun, hours } and each hour carries raw values plus the
-// evaluation from core/evaluate.js. Only daylight hours are included,
-// from civil dawn (first light) through civil dusk (last light).
+// Returns { location, timezone, generatedAt, windSource, warnings, days }
+// where each day has { date, sun, hours } and each hour carries raw values
+// plus the evaluation from core/evaluate.js. Only daylight hours are
+// included, from civil dawn (first light) through civil dusk (last light).
 export async function buildForecast(location, options = {}) {
   const days = Math.min(Math.max(options.days ?? 7, 1), 7);
   const prefs = mergePrefs(location.prefs);
   const warnings = [];
 
   const weather = await fetchWeather(location.lat, location.lon, days);
+
+  let windSource = "open-meteo";
+  if (options.fetchWind) {
+    try {
+      const windHours = await options.fetchWind(location.lat, location.lon, days);
+      if (windHours && windHours.length > 0) {
+        for (const h of windHours) {
+          const iso = localIsoFromUtc(h.epoch * 1000, weather.utcOffsetSeconds);
+          const record = weather.hours.get(iso);
+          if (record && h.windMph != null) {
+            record.windMph = h.windMph;
+            if (h.windDirDeg != null) record.windDirDeg = h.windDirDeg;
+          }
+        }
+        windSource = "tempest";
+      }
+    } catch (err) {
+      warnings.push(`Tempest wind unavailable, using Open-Meteo wind: ${err.message}`);
+    }
+  }
 
   let marine = new Map();
   if (prefs.swell.enabled) {
@@ -108,6 +131,7 @@ export async function buildForecast(location, options = {}) {
     location: { name: location.name, lat: location.lat, lon: location.lon },
     timezone: weather.timezone,
     generatedAt: new Date().toISOString(),
+    windSource,
     warnings,
     days: outDays,
   };

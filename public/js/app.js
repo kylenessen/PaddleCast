@@ -15,11 +15,21 @@ const sidebar = document.getElementById("sidebar");
 // app is on-demand: reload the page to refresh data.
 const forecastCache = new Map();
 
+// Tempest wind comes through the /api/wind Pages Function, which holds
+// the access token. A 404 means no token is configured (or the site is
+// running as plain static files), and Open-Meteo wind is used instead.
+async function fetchWindViaApi(lat, lon, days) {
+  const res = await fetch(`/api/wind?lat=${lat}&lon=${lon}&days=${days}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`wind API returned ${res.status}`);
+  return (await res.json()).hours;
+}
+
 async function forecastFor(location) {
   if (!forecastCache.has(location.id)) {
     forecastCache.set(
       location.id,
-      buildForecast(location).catch((err) => err)
+      buildForecast(location, { fetchWind: fetchWindViaApi }).catch((err) => err)
     );
   }
   return forecastCache.get(location.id);
