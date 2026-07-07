@@ -90,40 +90,58 @@ function evalTide(hour, prefs) {
   return { category, value: `${hour.tideFt.toFixed(1)} ft`, detail: "MLLW" };
 }
 
-// Rates the total sea state: waveFt is significant wave height with
-// swell and wind waves combined, per the observation study (a small
-// swell plus wind chop can still be a no-go). The minimum period only
-// gates the excellent tier; short-period water at excellent height
-// paddles like merely acceptable water, not dangerous water.
+// Rates the total sea state. Height tiers use waveFt, significant wave
+// height with swell and wind waves combined, per the observation study
+// (a small swell plus wind chop can still be a no-go).
+//
+// On top of the height tier sits a steepness rule from the ocean-kayak
+// rule of thumb: swell is comfortable when its period in seconds is at
+// least periodRatio times its height in feet (2x by default). A fixed
+// period floor gets this wrong because 8 seconds rides fine under a
+// 2 ft swell and genuinely rough under a 4 ft one. Failing the ratio
+// demotes the hour one tier; failing it badly (under 3/4 of the ratio)
+// also caps the hour at marginal, since steep short-period water is
+// unpleasant at any height. The check uses the swell component's own
+// height and period, not the blended totals, because wind chop drags
+// the blended period down and the chop itself is already priced into
+// the height tier and the wind metric.
 function evalWaves(hour, prefs) {
   if (hour.waveFt == null) {
     return { category: "marginal", value: "no data", detail: "" };
   }
   const p = prefs.waves;
   const sector = sectorFromDegrees(hour.waveDirDeg ?? 0);
-  const isProtected = p.protectedSectors.includes(sector);
-  const marginalLimit = isProtected
-    ? Math.max(p.marginalMaxFt, p.protectedMaxFt)
-    : p.marginalMaxFt;
-  const periodOk =
-    hour.wavePeriodS == null || hour.wavePeriodS >= p.minPeriodS;
-  let category;
-  if (hour.waveFt > marginalLimit) category = "notForMe";
-  else if (hour.waveFt <= p.excellentMaxFt && periodOk) category = "excellent";
-  else if (hour.waveFt <= p.acceptableMaxFt) category = "acceptable";
-  else category = "marginal";
+  let tier;
+  if (hour.waveFt <= p.excellentMaxFt) tier = 0;
+  else if (hour.waveFt <= p.acceptableMaxFt) tier = 1;
+  else if (hour.waveFt <= p.marginalMaxFt) tier = 2;
+  else tier = 3;
+  let steepness = "";
+  if (hour.swellFt > 0 && hour.swellPeriodS != null) {
+    const needS = p.periodRatio * hour.swellFt;
+    if (hour.swellPeriodS < needS * 0.75) {
+      tier = Math.max(tier + 1, 2);
+      steepness = "very steep swell";
+    } else if (hour.swellPeriodS < needS) {
+      tier += 1;
+      steepness = "steep swell";
+    }
+  }
+  const category = ["excellent", "acceptable", "marginal", "notForMe"][
+    Math.min(tier, 3)
+  ];
   // Components are shown for context, not as a sum: wave heights
   // combine non-linearly and the total also includes secondary swell
   // trains Open-Meteo does not break out.
   const details = [];
   if (hour.swellFt != null && hour.windWaveFt != null) {
+    const swellPeriod =
+      hour.swellPeriodS != null ? ` @ ${Math.round(hour.swellPeriodS)}s` : "";
     details.push(
-      `primary swell ${hour.swellFt.toFixed(1)} ft, wind chop ${hour.windWaveFt.toFixed(1)} ft`
+      `swell ${hour.swellFt.toFixed(1)} ft${swellPeriod}, wind chop ${hour.windWaveFt.toFixed(1)} ft`
     );
   }
-  if (isProtected && hour.waveFt > p.marginalMaxFt) {
-    details.push("allowed by protected direction");
-  }
+  if (steepness) details.push(steepness);
   return {
     category,
     value: `${hour.waveFt.toFixed(1)} ft @ ${

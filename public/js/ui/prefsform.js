@@ -5,7 +5,7 @@
 // buildPrefsForm(prefs) returns { element, read }. `element` is a
 // fragment of settings sections to drop into a form; `read()` returns a
 // full prefs object reflecting the current control values, including
-// the protected-direction wheels for wind and waves.
+// the protected-direction wheel for wind.
 
 import { BEAUFORT, beaufortMphRange } from "../core/beaufort.js";
 import { CONDITION_CATEGORIES } from "../core/wmo.js";
@@ -182,7 +182,7 @@ export function buildPrefsForm(prefs) {
   // Waves
   const waves = section(
     "Waves",
-    "For open-coast launches. Total wave height, swell and wind waves combined, with nested ceilings like wind. The minimum period only applies to the excellent tier. Protected directions allow bigger waves."
+    "For open-coast launches. Total wave height, swell and wind waves combined, with nested ceilings like wind. Steepness demotes an hour when the swell period (seconds) is less than the ratio times the swell height (feet); period at least twice the height rides flat."
   );
   const wavesEnabled = el("input");
   wavesEnabled.type = "checkbox";
@@ -190,19 +190,15 @@ export function buildPrefsForm(prefs) {
   const wavesExcellent = numberInput(prefs.waves.excellentMaxFt, { step: 0.5 });
   const wavesAcceptable = numberInput(prefs.waves.acceptableMaxFt, { step: 0.5 });
   const wavesMarginal = numberInput(prefs.waves.marginalMaxFt, { step: 0.5 });
-  const wavesPeriod = numberInput(prefs.waves.minPeriodS, { step: 1 });
-  const wavesProtMax = numberInput(prefs.waves.protectedMaxFt, { step: 0.5 });
-  keepNested([wavesExcellent, wavesAcceptable, wavesMarginal, wavesProtMax]);
+  const wavesRatio = numberInput(prefs.waves.periodRatio, { step: 0.25 });
+  keepNested([wavesExcellent, wavesAcceptable, wavesMarginal]);
   waves.appendChild(field("Track waves at this location", wavesEnabled));
   const wavesRow = el("div", "field-row");
   wavesRow.appendChild(field("Excellent up to (ft)", wavesExcellent));
   wavesRow.appendChild(field("Acceptable up to (ft)", wavesAcceptable));
   wavesRow.appendChild(field("Marginal up to (ft)", wavesMarginal));
-  wavesRow.appendChild(field("Min period for excellent (s)", wavesPeriod));
+  wavesRow.appendChild(field("Period ratio (s per ft of swell)", wavesRatio));
   waves.appendChild(wavesRow);
-  const wavesWheel = directionWheel(prefs.waves.protectedSectors);
-  waves.appendChild(wavesWheel);
-  waves.appendChild(field("Marginal up to, from protected directions (ft)", wavesProtMax));
   frag.appendChild(waves);
 
   function read() {
@@ -236,9 +232,7 @@ export function buildPrefsForm(prefs) {
         excellentMaxFt: Number(wavesExcellent.value),
         acceptableMaxFt: Number(wavesAcceptable.value),
         marginalMaxFt: Number(wavesMarginal.value),
-        minPeriodS: Number(wavesPeriod.value),
-        protectedSectors: wavesWheel.getSelected(),
-        protectedMaxFt: Number(wavesProtMax.value),
+        periodRatio: Number(wavesRatio.value),
       },
     };
   }

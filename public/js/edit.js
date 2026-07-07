@@ -17,8 +17,8 @@ const editor = document.getElementById("editor");
 // key) still gives every control something to bind to.
 const SHAPE = {
   wind: {
-    excellentMax: 1, acceptableMax: 2, marginalMax: 3,
-    protectedSectors: [], protectedMax: 4,
+    excellentMax: 0, acceptableMax: 1, marginalMax: 2,
+    protectedSectors: [], protectedMax: 3,
   },
   temp: {
     excellentMin: 65, excellentMax: 75,
@@ -33,7 +33,7 @@ const SHAPE = {
   tide: { enabled: false, stationId: "", minFt: 2.5, marginFt: 0.5 },
   waves: {
     enabled: false, excellentMaxFt: 2, acceptableMaxFt: 3, marginalMaxFt: 4,
-    minPeriodS: 8, protectedSectors: [], protectedMaxFt: 6,
+    periodRatio: 2,
   },
 };
 

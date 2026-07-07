@@ -50,9 +50,7 @@
       "excellentMaxFt": 2,
       "acceptableMaxFt": 3,
       "marginalMaxFt": 4,
-      "minPeriodS": 8,
-      "protectedSectors": [],
-      "protectedMaxFt": 6
+      "periodRatio": 2
     }
   },
   "locations": [
@@ -87,20 +85,7 @@
       "lon": -120.74859,
       "prefs": {
         "waves": {
-          "enabled": true,
-          "protectedSectors": [
-            0,
-            1,
-            2,
-            3,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15
-          ]
+          "enabled": true
         }
       }
     },
@@ -111,21 +96,7 @@
       "lon": -121.19392,
       "prefs": {
         "waves": {
-          "enabled": true,
-          "protectedSectors": [
-            0,
-            1,
-            2,
-            3,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15
-          ]
+          "enabled": true
         }
       }
     },
@@ -155,20 +126,7 @@
       "lon": -120.8883,
       "prefs": {
         "waves": {
-          "enabled": true,
-          "protectedSectors": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11
-          ]
+          "enabled": true
         }
       }
     }
