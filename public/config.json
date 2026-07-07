@@ -16,11 +16,11 @@
   },
   "defaults": {
     "wind": {
-      "excellentMax": 1,
-      "acceptableMax": 2,
-      "marginalMax": 3,
+      "excellentMax": 0,
+      "acceptableMax": 1,
+      "marginalMax": 2,
       "protectedSectors": [],
-      "protectedMax": 4
+      "protectedMax": 3
     },
     "temp": {
       "excellentMin": 67,
@@ -62,6 +62,12 @@
       "lat": 35.3295,
       "lon": -120.84422,
       "prefs": {
+        "wind": {
+          "excellentMax": 1,
+          "acceptableMax": 2,
+          "marginalMax": 3,
+          "protectedMax": 4
+        },
         "tide": {
           "enabled": true,
           "stationId": "9412110"
@@ -74,6 +80,12 @@
       "lat": 35.3721,
       "lon": -120.86019,
       "prefs": {
+        "wind": {
+          "excellentMax": 1,
+          "acceptableMax": 2,
+          "marginalMax": 3,
+          "protectedMax": 4
+        },
         "tide": {
           "stationId": "9412110",
           "minFt": 0
@@ -86,6 +98,12 @@
       "lat": 35.17768,
       "lon": -120.74859,
       "prefs": {
+        "wind": {
+          "excellentMax": 1,
+          "acceptableMax": 2,
+          "marginalMax": 3,
+          "protectedMax": 4
+        },
         "waves": {
           "enabled": true,
           "protectedSectors": [
@@ -110,6 +128,12 @@
       "lat": 35.64038,
       "lon": -121.19392,
       "prefs": {
+        "wind": {
+          "excellentMax": 1,
+          "acceptableMax": 2,
+          "marginalMax": 3,
+          "protectedMax": 4
+        },
         "waves": {
           "enabled": true,
           "protectedSectors": [
@@ -135,6 +159,12 @@
       "lat": 35.58116,
       "lon": -121.11934,
       "prefs": {
+        "wind": {
+          "excellentMax": 1,
+          "acceptableMax": 2,
+          "marginalMax": 3,
+          "protectedMax": 4
+        },
         "temp": {
           "excellentMin": 65,
           "excellentMax": 75
@@ -154,6 +184,12 @@
       "lat": 35.27421,
       "lon": -120.8883,
       "prefs": {
+        "wind": {
+          "excellentMax": 1,
+          "acceptableMax": 2,
+          "marginalMax": 3,
+          "protectedMax": 4
+        },
         "waves": {
           "enabled": true,
           "protectedSectors": [
