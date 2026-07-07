@@ -2,8 +2,9 @@
 //
 // Direction preferences use 16 compass sectors, index 0 = N through
 // 15 = NNW, each spanning 22.5 degrees. "Protected" sectors model
-// terrain shielding: when wind or waves arrive from a protected
-// sector, the tolerated upper limit is extended.
+// terrain shielding: when wind arrives from a protected sector, the
+// tolerated upper limit is extended. Only wind uses them; swell
+// shielding is a launch concern, not an on-the-water one.
 //
 // Every metric rates into four categories: excellent, acceptable,
 // marginal, notForMe. Wind, temperature, and waves use nested
@@ -68,15 +69,15 @@ function builtinPrefs() {
       marginFt: 0.5,
     },
     waves: {
-      // Total significant wave height, swell and wind waves combined.
-      // The minimum period gates the excellent tier only.
+      // Height tiers rate total significant wave height, swell and wind
+      // waves combined. periodRatio is the steepness rule: swell rides
+      // comfortably when its period (s) is at least this multiple of
+      // its height (ft). See evalWaves in evaluate.js.
       enabled: false,
       excellentMaxFt: 2,
       acceptableMaxFt: 3,
       marginalMaxFt: 4,
-      minPeriodS: 8,
-      protectedSectors: [],
-      protectedMaxFt: 6,
+      periodRatio: 2,
     },
   };
 }
@@ -152,10 +153,16 @@ function migrateStored(stored) {
       excellentMaxFt: w.goodMaxFt,
       acceptableMaxFt: (w.goodMaxFt + w.maxFt) / 2,
       marginalMaxFt: w.maxFt,
-      minPeriodS: w.minPeriodS ?? 8,
-      protectedSectors: w.protectedSectors ?? [],
-      protectedMaxFt: w.protectedMaxFt ?? w.maxFt + 2,
     };
+  }
+  // The wave rule used a fixed minimum period and direction shielding
+  // before the steepness ratio replaced them. Terrain shielding from
+  // swell is a launch concern, not an on-the-water one, so those keys
+  // just drop; the ratio comes in from defaults.
+  if (out.waves) {
+    const { minPeriodS, protectedSectors, protectedMaxFt, ...rest } =
+      out.waves;
+    out.waves = rest;
   }
   return out;
 }
