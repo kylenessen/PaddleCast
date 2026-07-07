@@ -59,15 +59,20 @@ export async function fetchWeather(lat, lon, days = 7) {
 }
 
 // Returns Map<localIso, { waveFt, wavePeriodS, waveDirDeg, swellFt,
-// windWaveFt }>. waveFt is the total significant wave height, swell and
-// wind waves combined, which is what the paddler actually feels. The
-// swell and wind-wave components ride along for display.
+// swellPeriodS, windWaveFt }>. waveFt is the total significant wave
+// height, swell and wind waves combined, which is what the paddler
+// actually feels. The swell component carries its own period because
+// the blended wave_period mixes in short wind chop and understates how
+// the swell itself rides; the steepness rule in core/evaluate.js needs
+// the swell's own numbers.
 // Throws if the point has no marine coverage (e.g. inland).
 export async function fetchMarine(lat, lon, days = 7) {
   const params = new URLSearchParams({
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
-    hourly: "wave_height,wave_period,wave_direction,swell_wave_height,wind_wave_height",
+    hourly:
+      "wave_height,wave_period,wave_direction," +
+      "swell_wave_height,swell_wave_period,wind_wave_height",
     length_unit: "imperial",
     forecast_days: String(days),
     timezone: TIMEZONE,
@@ -81,6 +86,7 @@ export async function fetchMarine(lat, lon, days = 7) {
       wavePeriodS: h.wave_period[i],
       waveDirDeg: h.wave_direction[i],
       swellFt: h.swell_wave_height[i],
+      swellPeriodS: h.swell_wave_period[i],
       windWaveFt: h.wind_wave_height[i],
     });
   }

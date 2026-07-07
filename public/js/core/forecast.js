@@ -90,6 +90,7 @@ export async function buildForecast(location, options = {}) {
         wavePeriodS: marine.get(record.iso)?.wavePeriodS ?? null,
         waveDirDeg: marine.get(record.iso)?.waveDirDeg ?? null,
         swellFt: marine.get(record.iso)?.swellFt ?? null,
+        swellPeriodS: marine.get(record.iso)?.swellPeriodS ?? null,
         windWaveFt: marine.get(record.iso)?.windWaveFt ?? null,
       };
       // Tag the hour that contains sunrise or sunset with the event and
