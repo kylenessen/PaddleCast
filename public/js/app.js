@@ -124,7 +124,7 @@ async function showHome() {
   me.target = "_blank";
   me.rel = "noopener";
   const lab = el("a", null, "Baywood Labs");
-  lab.href = "https://baywoodlabs.com";
+  lab.href = "https://www.baywood-labs.com";
   lab.target = "_blank";
   lab.rel = "noopener";
   credit.append(
